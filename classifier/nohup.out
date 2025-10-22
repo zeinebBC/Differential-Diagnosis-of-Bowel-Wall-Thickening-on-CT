@@ -1,0 +1,24 @@
+usage: main_train.py [-h] [--dataset {ColonCancer}] [--path_root PATH_ROOT]
+                     [--labels_file LABELS_FILE] [--splits_file SPLITS_FILE]
+                     [--cross_val CROSS_VAL]
+                     [--resample_spacing RESAMPLE_SPACING RESAMPLE_SPACING RESAMPLE_SPACING]
+                     [--div_cases DIV_CASES] [--transforms TRANSFORMS]
+                     [--num_workers NUM_WORKERS] [--num_epochs NUM_EPOCHS]
+                     [--overwrite_cropping OVERWRITE_CROPPING]
+                     [--overwrite_resample OVERWRITE_RESAMPLE]
+                     [--overwrite_window OVERWRITE_WINDOW] --model
+                     {ResNet,ResNetSliceTrans,DinoV2ClassifierSlice}
+                     [--path_root_output PATH_ROOT_OUTPUT] [--fold FOLD]
+                     [--num_patches_per_epoch_train NUM_PATCHES_PER_EPOCH_TRAIN]
+                     [--num_patches_per_epoch_val NUM_PATCHES_PER_EPOCH_VAL]
+                     [--batch_size BATCH_SIZE]
+                     [--patch_size PATCH_SIZE PATCH_SIZE PATCH_SIZE]
+main_train.py: error: the following arguments are required: --model
+Traceback (most recent call last):
+  File "/data/benchaaben/classifier/scripts/main_train.py", line 11, in <module>
+    from data import DataModuleCC  
+ModuleNotFoundError: No module named 'data'
+Traceback (most recent call last):
+  File "/data/benchaaben/classifier/scripts/main_train.py", line 11, in <module>
+    from data import DataModuleCC  
+ModuleNotFoundError: No module named 'data'

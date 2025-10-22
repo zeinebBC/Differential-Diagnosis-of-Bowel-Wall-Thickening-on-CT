@@ -1,0 +1,221 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "module": "scripts.grad_cam",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "cwd": "/data/benchaaben/classifier",
+            "args": [
+                "--seg_path", "/data/colon_cancer/Classifier/resampledTs/labels_resampled",
+                "--chkpt_folder", "/data/benchaaben/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_21_082332",
+                "--output_dir", "/data/benchaaben/classifier/runs_Resnet/gradcam_output",
+                "--patch_size", "156", "156", "32",
+                "--patch_overlap", "64", "64", "16",
+                "--list_cases", "18",
+                
+
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "program": "/data/benchaaben/classifier/scripts/main_train.py",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "cwd": "/data/benchaaben/classifier",
+            "args": [
+                "--num_patches_per_epoch_train", "2500",
+                "--num_patches_per_epoch_val", "250",
+                "--dataset", "ColonCancer",
+                "--path_root", "/data/colon_cancer",
+                "--model", "ResNet",
+                "--path_root_output", "/data/benchaaben/classifier/runs_Resnet",
+                "--batch_size", "8",
+                "--num_epochs", "100",
+                "--num_workers", "4",
+                "--patch_size", "156", "156", "32",
+                "--resample_spacing", "1", "1", "1",
+                "--overwrite_cropping", "False",
+                "--overwrite_resample", "False",
+                "--overwrite_window", "False"
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "program": "/data/benchaaben/classifier/scripts/main_predict.py",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "cwd": "/data/benchaaben/classifier",
+            "args": [
+                "--run_dir", "/data/benchaaben/classifier/runs_Resnet",
+                "--run_folder", "/data/benchaaben/classifier/runs_Resnet/ColonCancer/ResNet_2025_10_15_094431",
+                "--output_dir", "/data/benchaaben/classifier/outputs",
+                "--patch_size", "156", "156", "32",
+                "--resample_spacing", "1.0", "1.0", "1.0",
+                "--patch_overlap", "64", "64", "16",
+                "--aggregation_mode", "average",
+                "--overwrite_cropping", "False",
+                "--overwrite_resample", "False",
+                "--overwrite_window", "False"
+
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "program": "/data/benchaaben/classifier/scripts/main_train.py",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "cwd": "/data/benchaaben/classifier",
+            "args": [
+                "--num_patches_per_epoch_train", "2500",
+                "--num_patches_per_epoch_val", "250",
+                "--dataset", "ColonCancer",
+                "--path_root", "/data/colon_cancer",
+                "--model", "ResNet",
+                "--path_root_output", "/data/benchaaben/classifier/runs_Resnet",
+                "--batch_size", "8",
+                "--num_epochs", "100",
+                "--num_workers", "4",
+                "--patch_size", "156", "156", "32",
+                "--resample_spacing", "1", "1", "1",
+                "--overwrite_cropping", "False",
+                "--overwrite_resample", "False",
+                "--overwrite_window", "False"
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+
+
+nohup  /data/environments/.micromamba/envs/nnunet_env/bin/python -m scripts.main_train --num_patches_per_epoch_train 2500 --num_patches_per_epoch_val 250 --dataset ColonCancer --path_root /data/colon_cancer --model ResNet --path_root_output /data/benchaaben/classifier/runs_Resnet --batch_size 8 --num_epochs 100 --num_workers 4 --patch_size 156 156 32 --resample_spacing 1 1 1 --overwrite_cropping True --overwrite_resample True --overwrite_window True > /data/benchaaben/classifier/runs_Resnet/nohup_logs/train_1_1.log 2>&1 & 
+
+nohup  /data/environments/.micromamba/envs/nnunet_env/bin/python -m scripts.main_train --num_patches_per_epoch_train 2500 --num_patches_per_epoch_val 250 --dataset ColonCancer --path_root /data/colon_cancer --model ResNet --path_root_output /data/benchaaben/classifier/runs_Resnet --batch_size 8 --num_epochs 100 --num_workers 4 --patch_size 156 156 32 --resample_spacing 1 1 1 --overwrite_cropping False --overwrite_resample False --overwrite_window False > /data/benchaaben/classifier/runs_Resnet/nohup_logs/train_2_2.log 2>&1 & 
+
+nohup  /data/environments/.micromamba/envs/nnunet_env/bin/python -m scripts.main_train --num_patches_per_epoch_train 2500 --num_patches_per_epoch_val 250 --dataset ColonCancer --path_root /data/colon_cancer --model ResNet --path_root_output /data/benchaaben/classifier/runs_Resnet --batch_size 8 --num_epochs 100 --num_workers 4 --patch_size 156 156 32 --resample_spacing 1 1 1 --overwrite_cropping False --overwrite_resample False --overwrite_window False > /data/benchaaben/classifier/runs_Resnet/nohup_logs/train_2_1.log 2>&1 & 
+
+nohup  /data/environments/.micromamba/envs/nnunet_env/bin/python -m scripts.main_train --num_patches_per_epoch_train 2500 --num_patches_per_epoch_val 250 --dataset ColonCancer --path_root /data/colon_cancer --model ResNet --path_root_output /data/benchaaben/classifier/runs_Resnet --batch_size 8 --num_epochs 100 --num_workers 4 --patch_size 156 156 32 --resample_spacing 1 1 1 --overwrite_cropping False --overwrite_resample False --overwrite_window False > /data/benchaaben/classifier/runs_Resnet/nohup_logs/train_1_2.log 2>&1 & 
+
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "module": "scripts.main_inference_copy",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "cwd": "/data/benchaaben/classifier",
+            "args": [
+                "--model_name","ResNet",
+                "--chkpt_folder", "/data/benchaaben/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_21_174228",
+                "--output_dir", "/data/benchaaben/classifier/runs_Resnet/inf_outputs",             
+                "--patch_size", "156", "156", "32",
+                "--resample_spacing", "1.0", "1.0", "1.0",
+                "--patch_overlap", "64", "64", "16",
+                "--aggregation_mode", "average",
+                "--path_root", "/data/colon_cancer",
+                "--overwrite_cropping", "false",
+                "--overwrite_resample", "false",
+                "--overwrite_window", "false",
+                "--num_workers", "8",
+                "--use_last", "true"
+
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "module": "scripts.main_inference",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "cwd": "/data/benchaaben/classifier",
+            "args": [
+                "--config_file","/data/benchaaben/classifier/run_config.json",
+                
+
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "module": "scripts.main_inference",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "cwd": "/data/benchaaben/classifier",
+            "args": [
+                "--config_file","/data/benchaaben/classifier/run_config.json",
+                
+
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}

@@ -1,0 +1,88 @@
+{
+  "model": {
+    "type": "ResNet",
+    "in_ch": 1,
+    "out_ch": 2,
+    "spatial_dims": 3,
+    "resnet_model": 18,
+    "pretrained": false,
+    "kwargs_resnet": {}
+  },
+  "loss": {
+    "type": "torch.nn.modules.loss.CrossEntropyLoss",
+    "kwargs": {
+      "weight": [0.6, 0.4]
+    }
+  },
+  "optimizer": {
+    "type": "torch.optim.sgd.SGD",
+    "kwargs": {
+      "lr": 0.0008,
+      "momentum": 0.9,
+      "weight_decay": 0.01
+    }
+  },
+  "lr_scheduler": {
+    "type": "torch.optim.lr_scheduler.StepLR",
+    "kwargs": {
+      "step_size": 5,
+      "gamma": 0.5
+    }
+  },       
+  "training": {
+    "dataset": "ColonCancer",
+    "path_root": "/data/colon_cancer",
+    "labels_file": null,
+    "splits_file": null,
+    "cross_val": false,
+    "resample_spacing": [1.0, 1.0, 1.0],
+    "div_cases": null,
+    "transforms": null,
+    "num_workers": 4,
+    "num_epochs": 100,
+    "overwrite_cropping": false,
+    "overwrite_resample": false,
+    "overwrite_window": false,
+    "path_root_output": "/data/benchaaben/classifier/runs_Resnet",
+    "labels_path": null ,
+    "fold": 0,
+    "num_patches_per_epoch_train": 2500,
+    "num_patches_per_epoch_val": 250,
+    "batch_size": 16,
+    "patch_size": [156, 156, 32],
+    "resume_from_checkpoint": null
+  },
+  "metrics": {
+    "f1_kwargs": null,
+    "acc_kwargs": null
+  },
+  "testing": {
+    "chkpt_folder": "/data/benchaaben/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_21_174228",
+    "output_dir": "/data/benchaaben/classifier/runs_Resnet/inf_outputs",
+    "_comment":  "/data/colon_cancer/Classifier/resampledTs/labels_resampled      ResNet_ColonCancer_2025_10_21_174228",
+    "labels_path": null,              
+    "transforms": null,
+    "patch_size": [ 156, 156, 32],
+    "resample_spacing": [1, 1, 1],
+    "patch_overlap": [64, 64, 16],
+    "aggregation_mode": "average",
+    "path_root": "/data/colon_cancer",
+    "overwrite_cropping": false,
+    "overwrite_resample": false,
+    "overwrite_window": false,
+    "num_workers": 8,
+    "use_last": true
+  },
+  "gradcam": {
+    "chkpt_folder": "/data/benchaaben/classifier/runs_Resnet/ColonCancer/ResNet_2025_10_15_094431",
+    "labels_path": "/data/colon_cancer/Classifier/resampledTs/labels_resampled",
+    "output_dir": "/data/benchaaben/classifier/runs_Resnet/gradcam_output",
+    "patch_size": [156, 156, 32],
+    "patch_overlap": [64, 64, 16],
+    "list_cases": null,
+    "target_class": null,
+    "alpha": 0.35,
+    "use_last": false 
+  }
+}
+
