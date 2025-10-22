@@ -16,8 +16,6 @@ venv/
 *.log
 
 # Data and large folders
-data/
-models/
 checkpoints/
 *.pth
 *.pkl
