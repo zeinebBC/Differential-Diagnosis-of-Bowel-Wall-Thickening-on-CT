@@ -38,7 +38,7 @@ def main():
 
     chkpt_folder = gradcam_cfg.get("chkpt_folder", "")
     output_dir = gradcam_cfg.get("output_dir", "")
-    labels_path = gradcam_cfg.get("labels_path", None)
+    use_labels = gradcam_cfg.get("use_labels", True)
     patch_size = gradcam_cfg.get("patch_size", [64, 256, 256])
     patch_overlap = gradcam_cfg.get("patch_overlap", [32, 128, 128])
     list_cases = gradcam_cfg.get("list_cases", None)
@@ -46,6 +46,8 @@ def main():
     alpha = gradcam_cfg.get("alpha", 0.35)
     num_workers = gradcam_cfg.get("num_workers", 8)
     use_last = gradcam_cfg.get("use_last", False)
+    path_root = gradcam_cfg.get("path_root",f"/data/coloncancer/Classifier")
+    dataset_name = gradcam_cfg.get("dataset", None)
 
     # --- Setup output folder ---
     path_out = Path(output_dir) / Path(chkpt_folder).name
@@ -60,12 +62,15 @@ def main():
 
     # --- Load dataset ---
     ds_test = ColonCancer(
+        dataset_name=dataset_name,
         patch_size=patch_size,
         split='test',
         return_full_image=True,
-        labels_path=labels_path
+        path_root=path_root,
+        use_labels=use_labels
     )
 
+   
     # --- Load model ---
     model = get_model(config)
     if use_last:

@@ -1,1 +1,1 @@
-from .coloncancer import ColonCancer, preprocess_colon_cancer_dataset
+from .coloncancer import ColonCancer, BaseDataset

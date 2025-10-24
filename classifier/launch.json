@@ -219,3 +219,31 @@ nohup  /data/environments/.micromamba/envs/nnunet_env/bin/python -m scripts.main
         }
     ]
 }
+
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Run nnUNet preprocess",
+            "type": "python",
+            "request": "launch",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "module": "nnunetv2.run.run_training",
+            "args": [
+                "101",
+                "3d_fullres",
+                "0",
+                "-p", "nnUNetResEncUNetLPlans",
+                "--npz",
+                "-pretrained_weights",
+                "/data/colon_cancer/nnUNet_results/Dataset100_CC/nnUNetTrainer__nnUNetResEncUNetLPlans__3d_fullres/fold_0/checkpoint_best.pth", 
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}

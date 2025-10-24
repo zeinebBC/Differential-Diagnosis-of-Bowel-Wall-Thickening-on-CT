@@ -22,3 +22,6 @@ Traceback (most recent call last):
   File "/data/benchaaben/classifier/scripts/main_train.py", line 11, in <module>
     from data import DataModuleCC  
 ModuleNotFoundError: No module named 'data'
+Argument expected for the -m option
+usage: /data/environments/.micromamba/envs/nnunet_env/bin/python [option] ... [-c cmd | -m mod | file | -] [arg] ...
+Try `python -h' for more information.

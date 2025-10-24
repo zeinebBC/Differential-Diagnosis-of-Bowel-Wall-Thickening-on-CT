@@ -13,52 +13,67 @@ from data.utils.functions_utils import load_volume, pad_to_shape
 import os 
 
 
-
-class ColonCancer(data.Dataset):
-    PATH_ROOT = Path(os.environ.get("CC_PATH_ROOT", "/data/colon_cancer/"))
-    LABELS_FILE = Path(os.environ.get("CC_LABELS_FILE", "/data/colon_cancer/Classifier/labels.csv"))
-    SPLITS_FILE = Path(os.environ.get("CC_SPLITS_FILE", "/data/colon_cancer/Classifier/splits.csv"))
-
-
+class BaseDataset(data.Dataset):
+    
     def __init__(
         self,
-        patch_size,
+        patch_size=None,
+        dataset_name = None,
         transforms=None,
-        splits_file=None,
-        labels_file=None,
         num_patches_per_epoch=None,
         path_root=None,
         fold=None,
         split=None,
         return_full_image=False,
-        labels_path=None,
+        use_labels=None,
+        **preprocess_kwargs
         
     ):
         # ----------------------------
         # Paths
         # ----------------------------
-        self.path_root = self.PATH_ROOT if path_root is None else Path(path_root)
-        self.splits_file = self.SPLITS_FILE if splits_file is None else Path(splits_file)
-        self.labels_file = self.LABELS_FILE if labels_file is None else Path(labels_file)
+        self.path_root = Path(path_root) if path_root is not None else Path("/data/colon_cancer/Classifier") 
+        
         self.split = split
         self.return_full_image = return_full_image
+        self.dataset_name = dataset_name
         
         self.epoch = 0 
-        self.labels_path = Path(labels_path) if labels_path is not None else None
+        self.splits_file = self.path_root / self.dataset_name / f"splits.csv" 
+        self.labels_file = self.path_root / self.dataset_name / f"labels.csv"
+        self.use_labels= use_labels
         # ----------------------------
         # Preprocessing paths
         # ----------------------------
+
+        
+        
         if split=="train" or split=="val":
-            self.images_path = self.path_root / "Classifier/pp_Tr_npz"
+            self.images_path = self.path_root / self.dataset_name /"pp_Tr_npz"
+            self.labels_path = self.path_root / self.dataset_name / "resampledTr/labels_resampled"
 
         elif split=="test":
-            self.images_path = self.path_root / "Classifier/pp_Ts_npz"
-        
-    
+            self.images_path = self.path_root / self.dataset_name /"pp_Ts_npz"
+            self.labels_path = self.path_root / self.dataset_name / "resampledTs/labels_resampled"
         
         # ----------------------------
         # Dataset loading
         # ----------------------------
+        if not self.images_path.exists():
+            self. preprocess_dataset(preprocess_kwargs)
+
+  
+           
+
+        if split=="train" or split=="val":
+            self.images_path = self.path_root / self.dataset_name /"pp_Tr_npz"
+            self.labels_path = self.path_root / self.dataset_name / "resampledTr/labels_resampled"
+
+        elif split=="test":
+            self.images_path = self.path_root / self.dataset_name /"pp_Ts_npz"
+            self.labels_path = self.path_root / self.dataset_name / "resampledTs/labels_resampled"
+
+
         self.df = pd.read_csv(self.splits_file)
         if fold is not None:
             self.df = self.df[self.df['Fold'] == fold]
@@ -107,7 +122,7 @@ class ColonCancer(data.Dataset):
 
         # ---------- load label if available ----------
         lbl = None
-        if self.labels_path :
+        if self.use_labels :
             
             lbl_path = self.labels_path / (str(uid) + ".nii.gz")
             if lbl_path.exists():
@@ -161,205 +176,253 @@ class ColonCancer(data.Dataset):
             "patch": (x, y, z),
         }
     
+    def create_splits(self,n_folds=5, val_fraction=0.1, seed=42, cross_val=False):
+        """
+        Create stratified train/val splits for cross-validation or a single split.
+        Images whose paths contain 'imagesTs' are assigned to the test set and
+        excluded from training/validation splitting.
+        """
+        
+
+        if not self.labels_file.exists():
+            raise FileNotFoundError(f"Labels file not found at {self.labels_file}. "
+                                    "Run generate_target_mapping() first.")
+
+        df = pd.read_csv(self.labels_file)
+        print(f"Loaded {len(df)} samples from {self.labels_file}")
+        print("Class distribution:", df['target'].value_counts().to_dict())
+
+        # Identify test samples
+        test_mask = df['img_path'].str.contains('imagesTs')
+        df['Split'] = None
+        df.loc[test_mask, 'Split'] = 'test'
+
+        # Only use non-test samples for train/val splits
+        trainval_df = df[~test_mask].copy()
+
+        split_col = trainval_df.columns.get_loc('Split')  # Column index for 'Split'
+
+        if cross_val:
+            # === Stratified n-fold cross-validation ===
+            skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
+            splits = []
+
+            for fold, (train_idx, val_idx) in enumerate(skf.split(trainval_df, trainval_df['target'])):
+                df_fold = trainval_df.copy()
+                df_fold['Fold'] = fold
+
+                df_fold.iloc[train_idx, split_col] = 'train'
+                df_fold.iloc[val_idx, split_col] = 'val'
+
+                splits.append(df_fold)
+
+            df_splits = pd.concat(splits + [df[test_mask]]).reset_index(drop=True)
+            df_splits.to_csv(self.splits_file, index=False)
+            print(f"Created {n_folds}-fold train/val splits with test set and saved to {self.splits_file}")
+
+        else:
+            # === Single train/val split ===
+            train_idx, val_idx = train_test_split(
+                range(len(trainval_df)),
+                test_size=val_fraction,
+                stratify=trainval_df['target'],
+                random_state=seed
+            )
+
+            trainval_df['Fold'] = 0
+            trainval_df.iloc[train_idx, split_col] = 'train'
+            trainval_df.iloc[val_idx, split_col] = 'val'
+
+            df_final = pd.concat([trainval_df, df[test_mask]]).reset_index(drop=True)
+            df_final.to_csv(self.splits_file, index=False)
+            print(f"Created single train/val split with test set and saved to {self.splits_file}")
+        
+
+        
+    def preprocess_dataset(
+        self,
+        overwrite_cropping=True,
+        overwrite_resample=True,
+        overwrite_window=True,
+        resample_spacing=(0.7, 0.7, 0.8),
+        cross_val=False,
+        n_folds=5,
+        val_fraction=0.1,
+        seed=42,
+        path_data= None,
+        
+    ):
+        if self.split.lower() == "test":
+            split = "Ts"
+        else:
+            split = "Tr"
+
+        if path_data is None :
+            path_data = self.path_root / self.dataset_name / f"raw_splitted" 
+
+
+        images_dir = path_data / f"images{split}"
+        labels_dir = path_data / f"labels{split}"
+     
+        # ----------------------------
+        # Create splits
+        # ----------------------------
+        if not self.splits_file.exists():
+            self.create_splits(n_folds=n_folds, val_fraction=val_fraction, seed=seed, cross_val=cross_val)
+
+        # ----------------------------
+        # Cropping
+        # ----------------------------
+
+        path_cropped = self.path_root / self.dataset_name / f"raw_cropped{split}"
+        if not path_cropped.exists() or overwrite_cropping:
+            batch_crop_and_save(
+                images_dir=images_dir,
+                labels_dir=labels_dir,
+                output_dir=path_cropped,
+                margin_min=20.0,
+                overwrite=overwrite_cropping,
+            )
+
+        # ----------------------------
+        # Resampling
+        # ----------------------------
+        path_resampled = self.path_root / self.dataset_name / f"resampled{split}"
+        if not path_resampled.exists() or overwrite_resample:
+            batch_resample_and_save(
+                root_dir=path_cropped,
+                output_dir=path_resampled,
+                target_spacing=resample_spacing,
+                overwrite=overwrite_resample,
+            )
+
+        # ----------------------------
+        # Windowing + normalization
+        # ----------------------------
+        path_prepprocessed =self.path_root / self.dataset_name / f"pp_{split}_npz"
+        if not path_prepprocessed.exists() or overwrite_window:
+            process_and_window_dataset(
+                images_dir=path_resampled / f"images_resampled",
+                output_dir=path_prepprocessed,
+                window_min=-100,
+                window_max=500,
+                overwrite=overwrite_window,
+            )
+
+        print("Preprocessing complete. Dataset is ready to use.")
+
+
+
+
+    
+
+class ColonCancer(BaseDataset):
+  
+
+    def __init__(
+        self,
+        patch_size=None,
+        dataset_name="ColonCancer",
+        transforms=None,
+        num_patches_per_epoch=None,
+        path_root=None,
+        fold=None,
+        split=None,
+        return_full_image=False,
+        use_labels=None,
+        
+    ):
+        super().__init__(patch_size,dataset_name, transforms, num_patches_per_epoch, path_root, fold, split,return_full_image,use_labels)
+        
+    
  
         
-def generate_target_mapping(images_folder):
-    
-    DIV_CASES = Path(os.environ.get("CC_DIV_CASES", "/data/colon_cancer/Classifier/filename_mapping.json"))
-    images = list(images_folder.glob('*.nii*'))
-    
-    if not DIV_CASES.exists():
-        raise FileNotFoundError(f"Mapping file of diverticulities cases:  {DIV_CASES} not found.")
-    # Load known UIDs
-    with open(DIV_CASES) as f:
-        known_uids = json.load(f)
-    known_uids_set = set(known_uids.keys())
-    print(f"Loaded {len(known_uids_set)} known UIDs from {DIV_CASES}")
-    
-    mapping = []
-    num_div = 0
-    num_cancer = 0
-    if Path(ColonCancer.LABELS_FILE).exists():
-        existing_df = pd.read_csv(ColonCancer.LABELS_FILE)
-        existing_uids = set(existing_df['UID'].astype(str))
-        print(f"Loaded {len(existing_uids)} existing UIDs from {ColonCancer.LABELS_FILE}")
-    else:
-        existing_df = pd.DataFrame()
-        existing_uids = set()
-
-    for img_path in images:
-        uid = img_path.stem  # filename without extension
-
-        uid = uid.replace('_0000.nii','')
-        # Skip if already in existing mapping
-        if uid in existing_uids:
-            continue
-        ######################################################## changed this 0 for div and 1 for cancer ###############################################################
-        target = 0 if uid in known_uids_set else 1
-        if target == 0:
-            num_div +=1
-        else:
-            num_cancer += 1   
+    def generate_target_mapping(self,images_folder):
         
+        DIV_CASES = Path(os.environ.get("CC_DIV_CASES", "/data/colon_cancer/Classifier/filename_mapping.json"))
+        images = list(images_folder.glob('*.nii*'))
+        
+        if not DIV_CASES.exists():
+            raise FileNotFoundError(f"Mapping file of diverticulities cases:  {DIV_CASES} not found.")
+        # Load known UIDs
+        with open(DIV_CASES) as f:
+            known_uids = json.load(f)
+        known_uids_set = set(known_uids.keys())
+        print(f"Loaded {len(known_uids_set)} known UIDs from {DIV_CASES}")
+        
+        mapping = []
+        num_div = 0
+        num_cancer = 0
+        if Path(self.labels_file).exists():
+            existing_df = pd.read_csv(self.labels_file)
+            existing_uids = set(existing_df['UID'].astype(str))
+            print(f"Loaded {len(existing_uids)} existing UIDs from {self.labels_file}")
+        else:
+            existing_df = pd.DataFrame()
+            existing_uids = set()
 
-        mapping.append({'UID': uid, "img_path" : img_path, 'target': target})
+        for img_path in images:
+            uid = img_path.stem  # filename without extension
 
-    # Define the correct column order
-    columns_order = ['UID', 'img_path', 'target']
+            uid = uid.replace('_0000.nii','')
+            # Skip if already in existing mapping
+            if uid in existing_uids:
+                continue
+            target = 0 if uid in known_uids_set else 1
+            if target == 0:
+                num_div +=1
+            else:
+                num_cancer += 1   
+            
 
-    # Create new_df with correct column order
-    if mapping:
-        new_df = pd.DataFrame(mapping)[columns_order]
-        final_df = pd.concat([existing_df, new_df], ignore_index=True)
-        # Optional: enforce column order again after concatenation
-        final_df = final_df[columns_order]
-    else:
-        final_df = existing_df[columns_order]
+            mapping.append({'UID': uid, "img_path" : img_path, 'target': target})
 
-    # Save updated CSV
-    final_df.to_csv(ColonCancer.LABELS_FILE, index=False)
-    print(f"Saved classification labels for {len(final_df)} images to {ColonCancer.LABELS_FILE}")
-    print(f"Number of new diverticulitis cases: {num_div}")
-    print(f"Number of new colon cancer cases: {num_cancer}")
+        # Define the correct column order
+        columns_order = ['UID', 'img_path', 'target']
 
+        # Create new_df with correct column order
+        if mapping:
+            new_df = pd.DataFrame(mapping)[columns_order]
+            final_df = pd.concat([existing_df, new_df], ignore_index=True)
+            # Optional: enforce column order again after concatenation
+            final_df = final_df[columns_order]
+        else:
+            final_df = existing_df[columns_order]
 
-
-def create_splits(n_folds=5, val_fraction=0.1, seed=42, cross_val=False):
-    """
-    Create stratified train/val splits for cross-validation or a single split.
-    Images whose paths contain 'imagesTs' are assigned to the test set and
-    excluded from training/validation splitting.
-    """
-    
-
-    if not ColonCancer.LABELS_FILE.exists():
-        raise FileNotFoundError(f"Labels file not found at {ColonCancer.LABELS_FILE}. "
-                                "Run generate_target_mapping() first.")
-
-    df = pd.read_csv(ColonCancer.LABELS_FILE)
-    print(f"Loaded {len(df)} samples from {ColonCancer.LABELS_FILE}")
-    print("Class distribution:", df['target'].value_counts().to_dict())
-
-    # Identify test samples
-    test_mask = df['img_path'].str.contains('imagesTs')
-    df['Split'] = None
-    df.loc[test_mask, 'Split'] = 'test'
-
-    # Only use non-test samples for train/val splits
-    trainval_df = df[~test_mask].copy()
-
-    split_col = trainval_df.columns.get_loc('Split')  # Column index for 'Split'
-
-    if cross_val:
-        # === Stratified n-fold cross-validation ===
-        skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
-        splits = []
-
-        for fold, (train_idx, val_idx) in enumerate(skf.split(trainval_df, trainval_df['target'])):
-            df_fold = trainval_df.copy()
-            df_fold['Fold'] = fold
-
-            df_fold.iloc[train_idx, split_col] = 'train'
-            df_fold.iloc[val_idx, split_col] = 'val'
-
-            splits.append(df_fold)
-
-        df_splits = pd.concat(splits + [df[test_mask]]).reset_index(drop=True)
-        df_splits.to_csv(ColonCancer.SPLITS_FILE, index=False)
-        print(f"Created {n_folds}-fold train/val splits with test set and saved to {ColonCancer.SPLITS_FILE}")
-
-    else:
-        # === Single train/val split ===
-        train_idx, val_idx = train_test_split(
-            range(len(trainval_df)),
-            test_size=val_fraction,
-            stratify=trainval_df['target'],
-            random_state=seed
-        )
-
-        trainval_df['Fold'] = 0
-        trainval_df.iloc[train_idx, split_col] = 'train'
-        trainval_df.iloc[val_idx, split_col] = 'val'
-
-        df_final = pd.concat([trainval_df, df[test_mask]]).reset_index(drop=True)
-        df_final.to_csv(ColonCancer.SPLITS_FILE, index=False)
-        print(f"Created single train/val split with test set and saved to {ColonCancer.SPLITS_FILE}")
-    
+        # Save updated CSV
+        final_df.to_csv(self.labels_file, index=False)
+        print(f"Saved classification labels for {len(final_df)} images to {self.labels_file}")
+        print(f"Number of new diverticulitis cases: {num_div}")
+        print(f"Number of new colon cancer cases: {num_cancer}")
 
 
 
 
-# ----------------------------
-# Preprocessing function
-# ----------------------------
-def preprocess_colon_cancer_dataset(
-    path_root=None,
-    overwrite_cropping=True,
-    overwrite_resample=True,
-    overwrite_window=True,
-    resample_spacing=(0.7, 0.7, 0.8),
-    cross_val=False,
-    n_folds=5,
-    val_fraction=0.1,
-    seed=42,
-    split = "Tr"
-):
-    path_root = ColonCancer.PATH_ROOT if path_root is None else Path(path_root)
-    path_data_train = path_root / f"Task101_Colon/raw_splitted/imagesTr"
-    path_data_test = path_root / f"Task101_Colon/raw_splitted/imagesTs"
-    # ----------------------------
-    # Generate target mapping
-    # ----------------------------
-    if not ColonCancer.LABELS_FILE.exists():
-        generate_target_mapping(path_data_train)
-        generate_target_mapping(path_data_test)
+    def preprocess_dataset(
+        self,
+        overwrite_cropping=True,
+        overwrite_resample=True,
+        overwrite_window=True,
+        resample_spacing=(0.7, 0.7, 0.8),
+        cross_val=False,
+        n_folds=5,
+        val_fraction=0.1,
+        seed=42,
+        path_data= Path(f"/data/colon_cancer/Task101_Colon/raw_splitted/")
+    ):
+        
+      
+        if not self.labels_file.exists():
+            self.generate_target_mapping(path_data / "imagesTr")
+            self.generate_target_mapping(path_data / "imagesTs")
 
 
-    # ----------------------------
-    # Create splits
-    # ----------------------------
-    if not ColonCancer.SPLITS_FILE.exists():
-        create_splits(n_folds=n_folds, val_fraction=val_fraction, seed=seed, cross_val=cross_val)
-
-    # ----------------------------
-    # Cropping
-    # ----------------------------
-
-    path_cropped = path_root / f"Classifier/raw_cropped{split}"
-    if not path_cropped.exists() or overwrite_cropping:
-        batch_crop_and_save(
-            images_dir=path_root / f"Task101_Colon/raw_splitted/images{split}",
-            labels_dir=path_root / f"Task101_Colon/raw_splitted/labels{split}",
-            output_dir=path_cropped,
-            margin_min=20.0,
-            overwrite=overwrite_cropping,
-        )
-
-    # ----------------------------
-    # Resampling
-    # ----------------------------
-    path_resampled = path_root / f"Classifier/resampled{split}"
-    if not path_resampled.exists() or overwrite_resample:
-        batch_resample_and_save(
-            root_dir=path_cropped,
-            output_dir=path_resampled,
-            target_spacing=resample_spacing,
-            overwrite=overwrite_resample,
-        )
-
-    # ----------------------------
-    # Windowing + normalization
-    # ----------------------------
-    path_prepprocessed = path_root / f"Classifier/pp_{split}_npz"
-    if not path_prepprocessed.exists() or overwrite_window:
-        process_and_window_dataset(
-            images_dir=path_resampled / f"images_resampled",
-            output_dir=path_prepprocessed,
-            window_min=-100,
-            window_max=500,
-            overwrite=overwrite_window,
-        )
-
-    print("Preprocessing complete. Dataset is ready to use.")
-
-
+        super().preprocess_dataset( overwrite_cropping=overwrite_cropping,
+        overwrite_resample=overwrite_resample,
+        overwrite_window=overwrite_window,
+        resample_spacing=resample_spacing,
+        cross_val=cross_val,
+        n_folds=n_folds,
+        val_fraction=val_fraction,
+        seed=seed,
+        path_data= path_data)

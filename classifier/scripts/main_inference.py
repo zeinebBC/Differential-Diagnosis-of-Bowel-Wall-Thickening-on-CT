@@ -13,7 +13,7 @@ from sklearn.metrics import  confusion_matrix, classification_report
 
 import torch.nn.functional as F
 import pandas as pd 
-from data import ColonCancer, preprocess_colon_cancer_dataset 
+from data import ColonCancer, BaseDataset 
 import torchio as tio
 from collections import Counter
 from data import DataModuleCC
@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
     chkpt_folder = config["testing"].get("chkpt_folder", "")
     output_dir = config["testing"].get("output_dir", "")
-    labels_path = config["testing"].get("labels_path", "")
+    use_labels = config["testing"].get("use_labels", True)
     transforms = config["testing"].get("transforms", None)
     patch_size = config["testing"].get("patch_size", [64, 256, 256])
     resample_spacing = config["testing"].get("resample_spacing", [1, 1, 1])
@@ -102,6 +102,7 @@ if __name__ == "__main__":
     overwrite_window = config["testing"].get("overwrite_window", True)
     num_workers = config["testing"].get("num_workers", 8)
     use_last = config["testing"].get("use_last", False)
+    dataset_name = config["testing"].get("dataset", False)
 
     # --- Setup output folder ---
     path_out = Path(output_dir) / Path(chkpt_folder).name
@@ -110,25 +111,40 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.set_float32_matmul_precision('high')
 
+    if dataset_name == "ColonCancer":
+          
+        ds_test = ColonCancer(
+            dataset_name= dataset_name,
+            patch_size=patch_size,
+            transforms=transforms,
+            split="test",
+            return_full_image=True,
+            path_root=path_root,
+            use_labels=use_labels,
+            overwrite_cropping=overwrite_cropping,
+            overwrite_resample=overwrite_resample,
+            overwrite_window=overwrite_window,
+            resample_spacing=tuple(resample_spacing),
+        )
 
-    # --- Preprocess dataset ---
-    preprocess_colon_cancer_dataset(
-        path_root=path_root,
-        overwrite_cropping=overwrite_cropping,
-        overwrite_resample=overwrite_resample,
-        overwrite_window=overwrite_window,
-        resample_spacing=tuple(resample_spacing),
-        split="Ts",
-    )
+      
+    else:
+        ds_test = BaseDataset(
+            dataset_name= dataset_name,
+            patch_size=patch_size,
+            transforms=transforms,
+            split="test",
+            return_full_image=True,
+            path_root=path_root,
+            use_labels=use_labels,
+            overwrite_cropping=overwrite_cropping,
+            overwrite_resample=overwrite_resample,
+            overwrite_window=overwrite_window,
+            resample_spacing=tuple(resample_spacing),)
 
-    # --- Load test dataset ---
-    ds_test = ColonCancer(
-        patch_size=patch_size,
-        transforms=transforms,
-        split='test',
-        return_full_image=True,
-        labels_path=labels_path
-    )
+       
+      
+
 
     dm = DataModuleCC(
         ds_test=ds_test,

@@ -99,37 +99,38 @@ if __name__ == "__main__":
     
    
     # ------------ Load Data ------------
-    preprocess_colon_cancer_dataset(
-    path_root=config["training"]["path_root"],
-    overwrite_cropping=config["training"]["overwrite_cropping"],
-    overwrite_resample=config["training"]["overwrite_resample"],
-    overwrite_window=config["training"]["overwrite_window"],
-    resample_spacing=tuple(config["training"]["resample_spacing"]),
-    cross_val=config["training"]["cross_val"],
-    
-)
+
+
     
     ds_train = ColonCancer(
+        dataset_name=config["dataset"],
         patch_size=config["training"]["patch_size"],
         transforms=config["training"]["transforms"],
         num_patches_per_epoch=config["training"]["num_patches_per_epoch_train"],
         fold=config["training"]["fold"],
         split='train',
         path_root=config["training"]["path_root"],
-        labels_path=config["training"]["labels_path"]
+        use_labels=config["training"]["use_labels"],
+        overwrite_cropping=config["training"]["overwrite_cropping"],
+        overwrite_resample=config["training"]["overwrite_resample"],
+        overwrite_window=config["training"]["overwrite_window"],
+        resample_spacing=tuple(config["training"]["resample_spacing"]),
+        cross_val=config["training"]["cross_val"],
         #labels_path = f"/data/colon_cancer/Classifier/resampledTr/labels_resampled"
        
         
     )
 
     ds_val = ColonCancer(
+        dataset_name=config["dataset"],
         patch_size=config["training"]["patch_size"],
         transforms=config["training"]["transforms"],
         num_patches_per_epoch=config["training"]["num_patches_per_epoch_val"],
         fold=config["training"]["fold"],
         split='val',
         path_root=config["training"]["path_root"],
-        labels_path=config["training"]["labels_path"]
+        use_labels=config["training"]["use_labels"],
+        
         #labels_path = f"/data/colon_cancer/Classifier/resampledTr/labels_resampled"
         
     )
