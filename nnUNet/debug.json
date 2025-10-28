@@ -1,0 +1,173 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Run nnUNet preprocess",
+            "type": "python",
+            "request": "launch",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "module": "nnunetv2.run.run_training",
+            "args": [
+                "100",
+                "3d_fullres",
+                "4",
+                "-p", "nnUNetResEncUNetLPlans",
+                "--npz"
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "module": "scripts.main_train",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "cwd": "/data/benchaaben/ColonCancerDetection/classifier",
+            "args": [
+                "--config_file","/data/benchaaben/ColonCancerDetection/classifier/run_config.json",
+                
+
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Run nnUNet preprocess",
+            "type": "python",
+            "request": "launch",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "module": "nnunetv2.inference.predict_from_raw_data",
+            "args": [
+
+                "-d",
+                "Dataset100_CC",
+                "-i",
+                "/data/colon_cancer/nnUNet_raw/Dataset100_CC/imagesTs",
+                "-o",
+                "/data/colon_cancer/nnUNet_raw/Dataset100_CC/imagesTs_pred",
+                "-f",
+                "0", "1", "2", "3", "4",
+                "-tr",
+                "nnUNetTrainer",
+                "-c",
+                "3d_fullres",
+                "-p",
+                "nnUNetResEncUNetLPlans",
+                "-npp",
+                "1",
+                "-nps",
+                "1",
+                
+
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Run nnUNetv2 Predict",
+            "type": "python",
+            "request": "launch",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "module": "nnunetv2.inference.predict_from_raw_data",
+            "cwd": "/data/colon_cancer",
+            "args": [
+                "-d", "Dataset100_CC",
+                "-i", "/data/colon_cancer/nnUNet_raw/Dataset100_CC/imagesTs",
+                "-o", "/data/colon_cancer/nnUNet_raw/Dataset100_CC/predictionsTs",
+                "-f", "0", "1", "2", "3", "4",
+                "-tr", "nnUNetTrainer",
+                "-c", "3d_fullres",
+                "-p", "nnUNetResEncUNetLPlans"
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "module": "scripts.grad_cam",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "cwd": "/data/benchaaben/ColonCancerDetection/classifier",
+            "args": [
+                "--config_file","/data/benchaaben/ColonCancerDetection/classifier/run_config.json",
+                
+
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+
+{
+    "version": "0.2.0",
+    "configurations": [
+
+        {
+            "name": "Run nnUNet preprocess",
+            "type": "python",
+            "request": "launch",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "module": "nnunetv2.experiment_planning.plan_and_preprocess_entrypoints",
+            "args": [
+                "-d",
+                "100",
+                "-c", 
+                "3d_fullres",
+                "-crop_mode",
+                "colon",
+                "-overwrite_target_spacing", "1.0", "1.0", "1.0",
+                "-overwrite_plans_name", "crop2colon_1spacing",
+                "-pl", "nnUNetPlannerResEncL",
+            
+                
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "1"
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+
