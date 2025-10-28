@@ -9,6 +9,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from models import ResNet
 import torchio as tio 
+from data.utils.functions_utils import load_volume
 class GradCAM3D:
     """
     Minimal Grad-CAM for 3D ResNet-like models.
@@ -58,11 +59,17 @@ class GradCAM3D:
         self.activations, self.gradients = None, None
 
         logits = self.model(input_3d)  # [B, num_classes]
-        if target_class is None:
-            target_class = logits.argmax(dim=1).item()
+        is_binary = logits.shape[1] == 1
 
-        # Backward on the target class score
-        score = logits[:, target_class].sum()
+        if target_class is None:
+            target_class = 0 if is_binary else logits.argmax(dim=1)
+
+        # Backward on the target score
+        if is_binary:
+            score = logits[:, 0].sum()
+        else:
+            score = logits[:, target_class].sum()
+            
         score.backward(retain_graph=False)
 
         if self.activations is None or self.gradients is None:
@@ -174,22 +181,12 @@ def load_case_from_dataset(ds: ColonCancer, uid: int,  in_ch=1) -> Tuple[torch.T
     match = [item for item in ds.images if item[0] == str(uid)]
     if not match:
         raise ValueError(f"UID '{uid}' not found in dataset.")
-    if ds.labels_path is not None:
-        label_path = ds.labels_path / f"{uid}.nii.gz"
-    else: 
-        if ds.split != 'test':
-            label_path = f"/data/colon_cancer/Classifier/resampledTr/labels_resampled/{uid}.nii.gz"
-        else:
-            label_path = f"/data/colon_cancer/Classifier/resampledTs/labels_resampled/{uid}.nii.gz"        
-    label = nib.load(label_path).get_fdata()
+    
+    label_path = ds.labels_path / f"{uid}.nii.gz"
+           
+    label = load_volume(label_path)
     uid, img_path, target = match[0]
-    # Load image
-    if img_path.suffix == ".npz":
-        data = np.load(img_path)["image"]
-    elif img_path.suffix in [".nii", ".gz", ".nii.gz"]:
-        data = nib.load(str(img_path)).get_fdata()
-    else:
-        raise ValueError(f"Unsupported image format: {img_path.suffix}")
+    data = load_volume(img_path)
     
     if in_ch == 1:
         data = torch.from_numpy(data).float().unsqueeze(0).unsqueeze(0)   

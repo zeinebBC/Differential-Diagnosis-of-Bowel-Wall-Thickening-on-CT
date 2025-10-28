@@ -73,6 +73,7 @@ def main():
    
     # --- Load model ---
     model = get_model(config)
+
     if use_last:
         model = model.load_last_checkpoint(chkpt_folder)
     else:
@@ -88,8 +89,10 @@ def main():
         raise ValueError("Please provide --list_cases in JSON config or CLI")
 
     # --- Iterate over cases ---
+    log_file = path_out / 'gradcam_log.txt'
+    logger.addHandler(logging.FileHandler(log_file, mode='a'))
     for i, uid in enumerate(tqdm(list_cases, total=len(list_cases), desc="Cases")):
-        logger.addHandler(logging.FileHandler(path_out / f'gradcam_log_{uid}.txt', mode='w'))
+        
 
         image, label, target = load_case_from_dataset(ds_test, uid, in_ch=model.in_ch)
         image, label = image.to(device), label.to(device)

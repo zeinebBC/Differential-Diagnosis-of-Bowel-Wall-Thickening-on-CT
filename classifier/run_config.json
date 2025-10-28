@@ -1,7 +1,7 @@
 {
   "model": {
     "type": "ResNet",
-    "in_ch": 1,
+    "in_ch": 2,
     "out_ch": 2,
     "spatial_dims": 3,
     "resnet_model": 18,
@@ -17,7 +17,7 @@
   "optimizer": {
     "type": "torch.optim.sgd.SGD",
     "kwargs": {
-      "lr": 0.0008,
+      "lr": 0.1,
       "momentum": 0.9,
       "weight_decay": 0.01
     }
@@ -26,14 +26,12 @@
     "type": "torch.optim.lr_scheduler.StepLR",
     "kwargs": {
       "step_size": 5,
-      "gamma": 0.5
+      "gamma": 0.1
     }
   },       
   "training": {
     "dataset": "ColonCancer",
     "path_root": "/data/colon_cancer/Classifier",
-    "labels_file": null,
-    "splits_file": null,
     "cross_val": false,
     "resample_spacing": [1.0, 1.0, 1.0],
     "div_cases": null,
@@ -48,7 +46,7 @@
     "fold": 0,
     "num_patches_per_epoch_train": 2500,
     "num_patches_per_epoch_val": 250,
-    "batch_size": 16,
+    "batch_size": 8,
     "patch_size": [156, 156, 32],
     "resume_from_checkpoint": null
   },
@@ -58,31 +56,29 @@
   },
   "testing": {
     "dataset": "Decathlon",
-    "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_21_174228",
+    "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_27_132134",
     "output_dir": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/inf_outputs",
     "_comment":  "/data/benchaaben/ColonCancerDetection/classifier/resampledTs/labels_resampled      ResNet_ColonCancer_2025_10_21_174228",
-    "use_labels": false,              
-    "transforms": null,
     "patch_size": [ 156, 156, 32],
-    "resample_spacing": [1, 1, 1],
+    "resample_spacing": [0.73828125,0.73828125, 0.8999999761581421],
     "patch_overlap": [64, 64, 16],
     "aggregation_mode": "average",
     "path_root": "/data/colon_cancer/Classifier",
-    "overwrite_cropping": false,
-    "overwrite_resample": false,
-    "overwrite_window": false,
+    "overwrite_cropping": true,
+    "overwrite_resample": true,
+    "overwrite_window": true,
     "num_workers": 8,
     "use_last": false
   },
   "gradcam": {
-    "dataset": "Decathlon",
-    "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/ColonCancer/ResNet_ColonCancer_2025_10_21_082332",
+    "dataset": "ColonCancer",
+    "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_21_094127",
     "use_labels": true,
     "output_dir": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/gradcam_output",
     "path_root": "/data/colon_cancer/Classifier",
     "patch_size": [156, 156, 32],
     "patch_overlap": [64, 64, 16],
-    "list_cases": null,
+    "list_cases": [18,339,29,530,206,86,300,646],
     "target_class": null,
     "alpha": 0.35,
     "use_last": false 

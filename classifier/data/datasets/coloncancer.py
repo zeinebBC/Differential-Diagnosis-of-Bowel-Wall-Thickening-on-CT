@@ -6,7 +6,7 @@ import json
 import numpy as np
 import nibabel as nib
 from sklearn.model_selection import StratifiedKFold, train_test_split
-from data.utils.cropping import batch_crop_and_save
+from data.utils.cropping import batch_crop_and_save, crop_to_label_region
 from data.utils.resampling import batch_resample_and_save
 from data.utils.normalizing import process_and_window_dataset
 from data.utils.functions_utils import load_volume, pad_to_shape
@@ -49,8 +49,11 @@ class BaseDataset(data.Dataset):
         
         
         if split=="train" or split=="val":
-            self.images_path = self.path_root / self.dataset_name /"pp_Tr_npz"
-            self.labels_path = self.path_root / self.dataset_name / "resampledTr/labels_resampled"
+            self.images_path = Path(f"/data/colon_cancer/Classifier/ColonCancer/nnUNetPlans_3d_fullres")
+            self.labels_path = Path(f"/data/colon_cancer/Classifier/ColonCancer/nnUNetPlans_3d_fullres")
+
+            #self.images_path = self.path_root / self.dataset_name /"pp_Tr_npz"
+            #self.labels_path = self.path_root / self.dataset_name / "resampledTr/labels_resampled"
 
         elif split=="test":
             self.images_path = self.path_root / self.dataset_name /"pp_Ts_npz"
@@ -63,15 +66,6 @@ class BaseDataset(data.Dataset):
             self. preprocess_dataset(preprocess_kwargs)
 
   
-           
-
-        if split=="train" or split=="val":
-            self.images_path = self.path_root / self.dataset_name /"pp_Tr_npz"
-            self.labels_path = self.path_root / self.dataset_name / "resampledTr/labels_resampled"
-
-        elif split=="test":
-            self.images_path = self.path_root / self.dataset_name /"pp_Ts_npz"
-            self.labels_path = self.path_root / self.dataset_name / "resampledTs/labels_resampled"
 
 
         self.df = pd.read_csv(self.splits_file)
@@ -85,6 +79,7 @@ class BaseDataset(data.Dataset):
             uid = str(row["UID"])
             target = int(row["target"])
             img_path = Path(self.images_path) / f"{uid}.npz"
+            #img_path = Path(self.images_path) / f"{int(uid):03d}.b2nd"
             self.images.append((uid, img_path, target))
 
         print(f"Loaded {len(self.images)} subjects for Fold={fold}, Split='{split}'")
@@ -125,11 +120,15 @@ class BaseDataset(data.Dataset):
         if self.use_labels :
             
             lbl_path = self.labels_path / (str(uid) + ".nii.gz")
+            #lbl_path = self.labels_path / f"{int(uid):03d}_seg.b2nd"
             if lbl_path.exists():
                 lbl = load_volume(lbl_path)
             else:
                 print(f" Warning: Label not found for {uid}")
-
+        #################################################################################################################################
+        #img, lbl, _ = crop_to_label_region(img[None,...], lbl, spacing= [0.73828125,0.73828125, 0.8999999761581421], margin_min=20 )
+        #img = img[0]
+        #################################################################################################################################
         # ---------- process full image mode ----------
         if self.return_full_image:
             img_t = torch.from_numpy(img).unsqueeze(0).float()
@@ -330,9 +329,10 @@ class ColonCancer(BaseDataset):
         split=None,
         return_full_image=False,
         use_labels=None,
+        **preprocess_kwargs
         
     ):
-        super().__init__(patch_size,dataset_name, transforms, num_patches_per_epoch, path_root, fold, split,return_full_image,use_labels)
+        super().__init__(patch_size,dataset_name, transforms, num_patches_per_epoch, path_root, fold, split,return_full_image,use_labels,**preprocess_kwargs)
         
     
  

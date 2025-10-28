@@ -10,7 +10,7 @@ from pytorch_lightning.loggers import MLFlowLogger
 import json 
 from data import DataModuleCC  
 from models import ResNet 
-from data import ColonCancer , preprocess_colon_cancer_dataset 
+from data import ColonCancer, BaseDataset
 
 from scripts.utils.functions import str2bool
 
@@ -103,7 +103,7 @@ if __name__ == "__main__":
 
     
     ds_train = ColonCancer(
-        dataset_name=config["dataset"],
+        dataset_name=config["training"]["dataset"],
         patch_size=config["training"]["patch_size"],
         transforms=config["training"]["transforms"],
         num_patches_per_epoch=config["training"]["num_patches_per_epoch_train"],
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     )
 
     ds_val = ColonCancer(
-        dataset_name=config["dataset"],
+        dataset_name=config["training"]["dataset"],
         patch_size=config["training"]["patch_size"],
         transforms=config["training"]["transforms"],
         num_patches_per_epoch=config["training"]["num_patches_per_epoch_val"],

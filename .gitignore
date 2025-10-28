@@ -14,7 +14,7 @@ venv/
 # OS / IDE
 .DS_Store
 *.log
-
+*.out
 # Data and large folders
 checkpoints/
 *.pth

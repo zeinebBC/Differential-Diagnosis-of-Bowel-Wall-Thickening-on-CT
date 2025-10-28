@@ -4,7 +4,8 @@ import random
 import numpy as np
 import nibabel as nib
 import torch
-
+import blosc2
+from pathlib import Path
 def pad_to_shape(vol, target_shape, constant_values=0):
     pad_width = []
     current_shape = vol.shape[-3:]
@@ -28,13 +29,28 @@ def pad_batch_with_channel(vol, target_shape, constant_values=0):
         padded_vols.append(padded_vol)
     return torch.stack(padded_vols)
 
+def load_b2nd(path):
+   
+    schunk = blosc2.open(path, mode="r")
+    arr = schunk[:][0]  
+    return arr
+
 def load_volume(path):
-            if path.suffix == ".npz":
-                return np.load(path)["image"]
-            elif path.suffix in [".nii", ".nii.gz", ".gz"]:
-                return nib.load(str(path)).get_fdata()
-            else:
-                raise ValueError(f"Unsupported image format: {path.suffix}")
+    path = Path(path)
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+    if path.suffix == ".npy":
+        return np.load(path)
+    elif path.suffix == ".npz":
+        return np.load(path)["image"]
+    elif path.suffix in [".nii", ".gz"]:
+        return nib.load(str(path)).get_fdata()
+    elif path.suffix == ".b2nd":
+        return load_b2nd(path)
+    else:
+        raise ValueError(f"Unsupported format: {path.suffix}")
+    
+   
             
 
 
