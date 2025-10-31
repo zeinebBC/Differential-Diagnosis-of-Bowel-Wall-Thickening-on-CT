@@ -9,8 +9,8 @@ import nibabel as nib
 from pathlib import Path
 from typing import Tuple, List
 import numpy as np
-
-
+from classifier.data.utils.functions_utils import load_volume
+import pickle 
 def voxels_from_mm(spacing, margin_mm: Tuple[float, float, float]):
     """Convert physical margin in mm to voxel units (rounding up)."""
     return tuple([int(np.ceil(mm / sp)) for mm, sp in zip(margin_mm, spacing)])
@@ -78,7 +78,8 @@ def batch_crop_and_save(
     output_dir: str,
     margin_min: float = 15.0,
     overwrite: bool = False,
-    crop_labels: bool = True
+    crop_labels: bool = True,
+    split:str ="Tr",
 ):
     """
     Crop all images in a dataset to their label-defined ROI and save results + metadata.
@@ -108,7 +109,7 @@ def batch_crop_and_save(
     print(f"Found {len(image_files)} images to process from {images_dir}")
 
     for img_path in tqdm(image_files, desc="Cropping dataset"):
-        uid = img_path.stem.replace("_0000.nii", "")
+        uid = int(img_path.stem.replace("_0000.nii", ""))
         out_img_path = cropped_images_dir / f"{uid}.nii.gz"
         out_label_path = cropped_labels_dir / f"{uid}.nii.gz" if crop_labels else None
 
@@ -162,7 +163,7 @@ def batch_crop_and_save(
 
     # ---- Save per-case metadata
     df = pd.DataFrame(records)
-    df.to_csv(output_dir / "cropping_metadata.csv", index=False)
+    df.to_csv(output_dir.parent / f"cropping_metadata_{split}.csv", index=False)
 
     # ---- Compute global shape statistics
     def compute_shape_stats(shapes):
@@ -187,9 +188,73 @@ def batch_crop_and_save(
     }
 
     # ---- Save stats as JSON
-    with open(output_dir / "shape_statistics.json", "w") as f:
+    with open(output_dir.parent / f"cropping_shape_statistics_{split}.json", "w") as f:
         json.dump(stats, f, indent=4)
 
     print(f"\n Cropped {len(df)} cases.")
     print(f" Saved metadata CSV → {output_dir / 'cropping_metadata.csv'}")
     print(f" Saved shape statistics JSON → {output_dir / 'shape_statistics.json'}")
+
+
+def crop_nnunet_data(
+        input_dir: str,
+        output_dir: str,
+        margin_min: float = 20.0,
+        overwrite: bool = True
+    ):
+        input_dir = Path(input_dir)
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Only get image files (exclude _seg.b2nd)
+        image_files = sorted([f for f in input_dir.glob("*.b2nd") if "_seg" not in f.name])
+        print(f"Found {len(image_files)} images to process from {input_dir}")
+
+        for img_path in tqdm(image_files, desc="Cropping dataset"):
+            print(img_path)
+            uid = int(img_path.stem)
+        
+            out_img_path = output_dir / f"{uid}.npz"
+            out_label_path = output_dir / f"{uid}_seg.npz"
+
+            if not overwrite and out_img_path.exists():
+                print(f"Skipping {uid}, already cropped.")
+                continue
+
+            label_path = input_dir / f"{uid}_seg.b2nd"
+            if not label_path.exists():
+                print(f"Label not found for {uid}, skipping.")
+                continue
+
+            metadata_path = input_dir / f"{uid}.pkl"
+            if not metadata_path.exists():
+                print(f"Metadata not found for {uid}, skipping.")
+                continue
+
+            # ---- Load metadata
+            with open(metadata_path, "rb") as f:
+                prop = pickle.load(f)
+
+            #spacing = prop.get("target_spacing", None)
+            ##################################################################################################################################
+            spacing = [1,1,1]
+            ###################################################################################################################################
+            # ---- Load .b2nd image and segmentation
+            data = load_volume(img_path)
+            seg = load_volume(label_path)
+
+            if data.ndim == 3:
+                data = data[None, ...]
+
+            # ---- Crop to ROI 
+            
+            data_cropped, seg_cropped, bbox = crop_to_label_region(data, seg, spacing, margin_min=margin_min)
+            
+
+            data_cropped = np.transpose(data_cropped[0],(2,1,0)) 
+            seg_cropped = np.transpose(seg_cropped,(2,1,0))
+
+            
+            # ---- Save cropped image and segmentation
+            np.savez_compressed(out_img_path, image=data_cropped)
+            np.savez_compressed(out_label_path, image=seg_cropped)

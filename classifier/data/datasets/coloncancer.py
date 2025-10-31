@@ -5,13 +5,43 @@ import torch
 import json
 import numpy as np
 import nibabel as nib
-from sklearn.model_selection import StratifiedKFold, train_test_split
-from data.utils.cropping import batch_crop_and_save, crop_to_label_region
-from data.utils.resampling import batch_resample_and_save
-from data.utils.normalizing import process_and_window_dataset
-from data.utils.functions_utils import load_volume, pad_to_shape
+from sklearn.model_selection import  train_test_split
+from classifier.data.utils.cropping import batch_crop_and_save, crop_nnunet_data
+from classifier.data.utils.resampling import batch_resample_and_save
+from classifier.data.utils.normalizing import process_and_window_dataset
+from classifier.data.utils.functions_utils import load_volume, pad_to_shape
 import os 
+def find_existing_file(base_dir, uid, candidates):
+    """
+    Returns the first existing file among candidate name patterns.
+    """
+    for pattern in candidates:
+        path = base_dir / pattern.format(int(uid))
+        if path.exists():
+            return path
+    return None
 
+image_candidates = [
+    "{:03d}.b2nd",
+    "{:03d}.npz",
+    "{:03d}_0000.nii.gz",
+    "{:03d}.nii.gz",
+    "{}.b2nd",
+    "{}.npz",
+    "{}_0000.nii.gz",
+    "{}.nii.gz",
+]
+label_candidates = [
+    "{:03d}_seg.b2nd",
+    "{:03d}_seg.npz",
+    "{:03d}_0000_seg.nii.gz",
+    "{}.nii.gz",
+    "{:03d}_seg.nii.gz",
+    "{}_seg.b2nd",
+    "{}_seg.npz",
+    "{}_0000_seg.nii.gz",
+    "{}_seg.nii.gz",
+]
 
 class BaseDataset(data.Dataset):
     
@@ -21,56 +51,68 @@ class BaseDataset(data.Dataset):
         dataset_name = None,
         transforms=None,
         num_patches_per_epoch=None,
-        path_root=None,
-        fold=None,
+      
         split=None,
         return_full_image=False,
         use_labels=None,
+        pp_nnunet_data=None,
         **preprocess_kwargs
         
     ):
         # ----------------------------
         # Paths
         # ----------------------------
-        self.path_root = Path(path_root) if path_root is not None else Path("/data/colon_cancer/Classifier") 
-        
+        self.path_root = os.environ.get("root_path")
+        self.pp_nnunet_data = pp_nnunet_data
         self.split = split
         self.return_full_image = return_full_image
         self.dataset_name = dataset_name
         
         self.epoch = 0 
-        self.splits_file = self.path_root / self.dataset_name / f"splits.csv" 
-        self.labels_file = self.path_root / self.dataset_name / f"labels.csv"
+        self.splits_file = self.path_root / Path(f"raw_data") / self.dataset_name / f"splits.csv" 
+        self.labels_file = self.path_root /  Path(f"raw_data") / self.dataset_name / f"labels.csv"
         self.use_labels= use_labels
         # ----------------------------
         # Preprocessing paths
         # ----------------------------
 
-        
-        
-        if split=="train" or split=="val":
-            self.images_path = Path(f"/data/colon_cancer/Classifier/ColonCancer/nnUNetPlans_3d_fullres")
-            self.labels_path = Path(f"/data/colon_cancer/Classifier/ColonCancer/nnUNetPlans_3d_fullres")
 
-            #self.images_path = self.path_root / self.dataset_name /"pp_Tr_npz"
-            #self.labels_path = self.path_root / self.dataset_name / "resampledTr/labels_resampled"
+        if split =="test":
+            #self.labels_path= Path(f"/data/colon_cancer/Classifier/ColonCancer/resampledTs/labels_resampled")
+            #self.images_path = Path(f"/data/colon_cancer/Classifier/ColonCancer/pp_Ts_npz")
 
-        elif split=="test":
-            self.images_path = self.path_root / self.dataset_name /"pp_Ts_npz"
-            self.labels_path = self.path_root / self.dataset_name / "resampledTs/labels_resampled"
+            self.images_path = self.path_root / Path(f"pp_data") / self.dataset_name /"rescaledTs"
+            self.labels_path = self.path_root /Path(f"pp_data") / self.dataset_name / "resampledTs/labels_resampled"
+            if not self.images_path.exists():
+                    self.preprocess_dataset(preprocess_kwargs)
         
-        # ----------------------------
-        # Dataset loading
-        # ----------------------------
-        if not self.images_path.exists():
-            self. preprocess_dataset(preprocess_kwargs)
+        else : 
+
+            if self.pp_nnunet_data:
+                if not self.splits_file.exists():
+                    self.create_splits()
+                root_pp =  self.path_root /  Path(f"pp_data") / self.dataset_name / Path(pp_nnunet_data)
+                self.images_path = self.labels_path  = root_pp / Path(f"cropped")
+                if not self.images_path.exists():
+                    crop_nnunet_data(input_dir=root_pp,output_dir=self.images_path)
 
   
+                
+            else:
+
+                self.images_path = self.path_root / Path(f"pp_data") / self.dataset_name /"rescaledTr"
+                self.labels_path = self.path_root /Path(f"pp_data") / self.dataset_name / "resampledTr/labels_resampled"
+                    
+                
+                # ----------------------------
+                # Dataset loading
+                # ----------------------------
+                if not self.images_path.exists():
+                    self.preprocess_dataset(preprocess_kwargs)
+
 
 
         self.df = pd.read_csv(self.splits_file)
-        if fold is not None:
-            self.df = self.df[self.df['Fold'] == fold]
         if split is not None:
             self.df = self.df[self.df['Split'] == split]
 
@@ -78,11 +120,12 @@ class BaseDataset(data.Dataset):
         for _, row in self.df.iterrows():
             uid = str(row["UID"])
             target = int(row["target"])
-            img_path = Path(self.images_path) / f"{uid}.npz"
-            #img_path = Path(self.images_path) / f"{int(uid):03d}.b2nd"
+            img_path = find_existing_file(self.images_path, uid, image_candidates)
+
+           
             self.images.append((uid, img_path, target))
 
-        print(f"Loaded {len(self.images)} subjects for Fold={fold}, Split='{split}'")
+        print(f"Loaded {len(self.images)} subjects for Split='{split}'")
 
         self.patch_size = patch_size
         self.transforms = transforms
@@ -94,10 +137,50 @@ class BaseDataset(data.Dataset):
 
     def __len__(self):
         return self.num_patches_per_epoch if self.num_patches_per_epoch else len(self.images)
-   
+    
+    def get_item_by_uid(self, uid):
+        # Find the entry matching this UID
+        matches = [item for item in self.images if item[0] == str(uid)]
+        if not matches:
+            raise ValueError(f"UID {uid} not found in dataset.")
+        uid, img_path, target = matches[0]
+
+        # ---------- load image ----------
+        img = load_volume(img_path)
+        img = np.transpose(img, (2, 1, 0))
+
+        # ---------- load label if available ----------
+        
+        lbl_path = find_existing_file(self.labels_path, uid, label_candidates)
+        if lbl_path.exists():
+            lbl = load_volume(lbl_path)
+            lbl = np.transpose(lbl, (2, 1, 0))
+        else:
+            print(f"Warning: Label not found for {uid}")
+
+        # ---------- convert to tensor ----------
+        img_t = torch.from_numpy(img).unsqueeze(0).float()
+        if self.transforms:
+            img_t = self.transforms(img_t)
+
+        if self.use_labels:
+            lbl_t = torch.from_numpy(lbl).unsqueeze(0).float()
+            img_t = torch.cat([img_t, lbl_t], dim=0)
+        else:
+            lbl_t = torch.from_numpy(lbl).unsqueeze(0).float()
+            
+
+
+        return {
+            "uid": uid,
+            "source": img_t.unsqueeze(0),
+            "label" : lbl_t.unsqueeze(0),
+            "target": torch.tensor(target, dtype=torch.long),
+        }
+
     def __getitem__(self, idx):
     
-    
+
         # ---------- deterministic random setup (optional) ----------
         worker_info = torch.utils.data.get_worker_info()
         worker_id = worker_info.id if worker_info else 0
@@ -114,21 +197,18 @@ class BaseDataset(data.Dataset):
 
         # ---------- load image ----------
         img = load_volume(img_path)
-
+        img = np.transpose(img,(2,1,0))
         # ---------- load label if available ----------
         lbl = None
         if self.use_labels :
-            
-            lbl_path = self.labels_path / (str(uid) + ".nii.gz")
-            #lbl_path = self.labels_path / f"{int(uid):03d}_seg.b2nd"
+            lbl_path = find_existing_file(self.labels_path, uid, label_candidates)
             if lbl_path.exists():
                 lbl = load_volume(lbl_path)
+                lbl = np.transpose(lbl,(2,1,0))
             else:
                 print(f" Warning: Label not found for {uid}")
-        #################################################################################################################################
-        #img, lbl, _ = crop_to_label_region(img[None,...], lbl, spacing= [0.73828125,0.73828125, 0.8999999761581421], margin_min=20 )
-        #img = img[0]
-        #################################################################################################################################
+
+
         # ---------- process full image mode ----------
         if self.return_full_image:
             img_t = torch.from_numpy(img).unsqueeze(0).float()
@@ -139,19 +219,17 @@ class BaseDataset(data.Dataset):
                 img_t = torch.cat([img_t, lbl_t], dim=0)  # 2 channels
             return {"uid": uid, "source": img_t, "target": torch.tensor(target, dtype=torch.long)}
 
+        
         # ---------- random crop ----------
-        H, W, D = img.shape
+        D, H, W = img.shape
         ps = self.patch_size
 
         def get_crop_coords(dim, patch_dim):
             return rng.integers(0, max(1, dim - patch_dim + 1)) if dim > patch_dim else 0
 
-        x, y, z = [get_crop_coords(s, p) for s, p in zip((H, W, D), ps)]
-        img_patch = img[x:x+ps[0], y:y+ps[1], z:z+ps[2]]
-        lbl_patch = lbl[x:x+ps[0], y:y+ps[1], z:z+ps[2]] if lbl is not None else None
-
-        
-        
+        z, x, y = [get_crop_coords(s, p) for s, p in zip((D, H, W), ps)]
+        img_patch = img[z:z+ps[0], x:x+ps[1], y:y+ps[2]]
+        lbl_patch = lbl[z:z+ps[0], x:x+ps[1], y:y+ps[2]] if lbl is not None else None
 
         if img_patch.shape != ps:
             img_patch = pad_to_shape(img_patch, ps)
@@ -172,12 +250,14 @@ class BaseDataset(data.Dataset):
             "uid": uid,
             "source": img_t,
             "target": torch.tensor(target, dtype=torch.long),
-            "patch": (x, y, z),
+            "patch": (z, x, y),
         }
     
-    def create_splits(self,n_folds=5, val_fraction=0.1, seed=42, cross_val=False):
+
+
+    def create_splits(self, val_fraction=0.1, seed=42):
         """
-        Create stratified train/val splits for cross-validation or a single split.
+        Create stratified train/val splits for a single split.
         Images whose paths contain 'imagesTs' are assigned to the test set and
         excluded from training/validation splitting.
         """
@@ -201,54 +281,37 @@ class BaseDataset(data.Dataset):
 
         split_col = trainval_df.columns.get_loc('Split')  # Column index for 'Split'
 
-        if cross_val:
-            # === Stratified n-fold cross-validation ===
-            skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=seed)
-            splits = []
-
-            for fold, (train_idx, val_idx) in enumerate(skf.split(trainval_df, trainval_df['target'])):
-                df_fold = trainval_df.copy()
-                df_fold['Fold'] = fold
-
-                df_fold.iloc[train_idx, split_col] = 'train'
-                df_fold.iloc[val_idx, split_col] = 'val'
-
-                splits.append(df_fold)
-
-            df_splits = pd.concat(splits + [df[test_mask]]).reset_index(drop=True)
-            df_splits.to_csv(self.splits_file, index=False)
-            print(f"Created {n_folds}-fold train/val splits with test set and saved to {self.splits_file}")
-
-        else:
-            # === Single train/val split ===
-            train_idx, val_idx = train_test_split(
-                range(len(trainval_df)),
-                test_size=val_fraction,
-                stratify=trainval_df['target'],
-                random_state=seed
-            )
-
-            trainval_df['Fold'] = 0
-            trainval_df.iloc[train_idx, split_col] = 'train'
-            trainval_df.iloc[val_idx, split_col] = 'val'
-
-            df_final = pd.concat([trainval_df, df[test_mask]]).reset_index(drop=True)
-            df_final.to_csv(self.splits_file, index=False)
-            print(f"Created single train/val split with test set and saved to {self.splits_file}")
-        
+       
+        # === Single train/val split ===
+        train_idx, val_idx = train_test_split(
+            range(len(trainval_df)),
+            test_size=val_fraction,
+            stratify=trainval_df['target'],
+            random_state=seed
+        )
 
         
+        trainval_df.iloc[train_idx, split_col] = 'train'
+        trainval_df.iloc[val_idx, split_col] = 'val'
+
+        df_final = pd.concat([trainval_df, df[test_mask]]).reset_index(drop=True)
+        df_final.to_csv(self.splits_file, index=False)
+        print(f"Created single train/val split with test set and saved to {self.splits_file}")
+        
+
+    
+
+
     def preprocess_dataset(
         self,
         overwrite_cropping=True,
         overwrite_resample=True,
         overwrite_window=True,
         resample_spacing=(0.7, 0.7, 0.8),
-        cross_val=False,
-        n_folds=5,
         val_fraction=0.1,
         seed=42,
         path_data= None,
+        use_gt=True,
         
     ):
         if self.split.lower() == "test":
@@ -257,48 +320,50 @@ class BaseDataset(data.Dataset):
             split = "Tr"
 
         if path_data is None :
-            path_data = self.path_root / self.dataset_name / f"raw_splitted" 
+            path_data = self.path_root /  f"raw_data"  / self.dataset_name 
 
 
         images_dir = path_data / f"images{split}"
-        labels_dir = path_data / f"labels{split}"
+        labels_dir = path_data / f"labels{split}" if use_gt else path_data / f"predictionsTr"
      
         # ----------------------------
         # Create splits
         # ----------------------------
         if not self.splits_file.exists():
-            self.create_splits(n_folds=n_folds, val_fraction=val_fraction, seed=seed, cross_val=cross_val)
+            self.create_splits( val_fraction=val_fraction, seed=seed)
 
         # ----------------------------
         # Cropping
         # ----------------------------
 
-        path_cropped = self.path_root / self.dataset_name / f"raw_cropped{split}"
+        path_cropped = self.path_root / Path(f"pp_data") / self.dataset_name / f"raw_cropped{split}"
         if not path_cropped.exists() or overwrite_cropping:
             batch_crop_and_save(
                 images_dir=images_dir,
                 labels_dir=labels_dir,
                 output_dir=path_cropped,
-                margin_min=20.0,
+                margin_min=20,
                 overwrite=overwrite_cropping,
+                split=split
             )
 
         # ----------------------------
         # Resampling
         # ----------------------------
-        path_resampled = self.path_root / self.dataset_name / f"resampled{split}"
+        path_resampled = self.path_root / Path(f"pp_data") / self.dataset_name / f"resampled{split}"
         if not path_resampled.exists() or overwrite_resample:
             batch_resample_and_save(
                 root_dir=path_cropped,
                 output_dir=path_resampled,
                 target_spacing=resample_spacing,
                 overwrite=overwrite_resample,
+                split=split
             )
 
         # ----------------------------
         # Windowing + normalization
         # ----------------------------
-        path_prepprocessed =self.path_root / self.dataset_name / f"pp_{split}_npz"
+        path_prepprocessed =self.path_root / Path(f"pp_data") / self.dataset_name / f"rescaled{split}"
         if not path_prepprocessed.exists() or overwrite_window:
             process_and_window_dataset(
                 images_dir=path_resampled / f"images_resampled",
@@ -306,6 +371,7 @@ class BaseDataset(data.Dataset):
                 window_min=-100,
                 window_max=500,
                 overwrite=overwrite_window,
+                split=split
             )
 
         print("Preprocessing complete. Dataset is ready to use.")
@@ -325,14 +391,14 @@ class ColonCancer(BaseDataset):
         transforms=None,
         num_patches_per_epoch=None,
         path_root=None,
-        fold=None,
         split=None,
         return_full_image=False,
         use_labels=None,
+        pp_nnunet_data=None,
         **preprocess_kwargs
         
     ):
-        super().__init__(patch_size,dataset_name, transforms, num_patches_per_epoch, path_root, fold, split,return_full_image,use_labels,**preprocess_kwargs)
+        super().__init__(patch_size,dataset_name, transforms, num_patches_per_epoch, split,return_full_image,use_labels,pp_nnunet_data,**preprocess_kwargs)
         
     
  
@@ -403,12 +469,12 @@ class ColonCancer(BaseDataset):
         overwrite_cropping=True,
         overwrite_resample=True,
         overwrite_window=True,
-        resample_spacing=(0.7, 0.7, 0.8),
-        cross_val=False,
-        n_folds=5,
+        resample_spacing=(1, 1, 1),
+       
+      
         val_fraction=0.1,
         seed=42,
-        path_data= Path(f"/data/colon_cancer/Task101_Colon/raw_splitted/")
+        path_data= Path(f"/data/colon_cancer/CC_Detection/raw_data/Dataset100_CC")
     ):
         
       
@@ -421,8 +487,8 @@ class ColonCancer(BaseDataset):
         overwrite_resample=overwrite_resample,
         overwrite_window=overwrite_window,
         resample_spacing=resample_spacing,
-        cross_val=cross_val,
-        n_folds=n_folds,
         val_fraction=val_fraction,
         seed=seed,
         path_data= path_data)
+
+

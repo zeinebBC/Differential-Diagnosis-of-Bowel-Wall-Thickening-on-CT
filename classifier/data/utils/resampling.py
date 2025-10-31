@@ -4,7 +4,7 @@ from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import SimpleITK as sitk
-
+import shutil 
 
 def resample_image(image, target_spacing, is_label=False, interpolator='cubic'):
     """Resample a SimpleITK image to the target spacing."""
@@ -38,7 +38,8 @@ def batch_resample_and_save(
     output_dir: str,
     target_spacing: tuple = (0.7, 0.7, 0.8),
     overwrite: bool = False,
-    
+    split:str ="Tr",
+
 ):
     """
     Batch resample images (and optionally labels) to a target spacing and save results + metadata.
@@ -68,7 +69,7 @@ def batch_resample_and_save(
     print(f"Found {len(image_files)} images in {images_dir}")
 
     for img_path in tqdm(image_files, desc="Resampling dataset"):
-        uid = img_path.stem.replace("_0000.nii", "").replace(".nii", "")
+        uid = int(img_path.stem.replace("_0000.nii", "").replace(".nii", ""))
         out_img_path = resampled_images_dir / f"{uid}.nii.gz"
        
 
@@ -96,7 +97,7 @@ def batch_resample_and_save(
         # --- Optional label resampling
         if labels_dir.exists():
             label_path = Path(labels_dir) / f"{uid}.nii.gz"
-            out_label_path = resampled_labels_dir / f"{uid}.nii.gz"
+            out_label_path = resampled_labels_dir / f"{uid}_seg.nii.gz"
             if label_path.exists():
                 label = sitk.ReadImage(str(label_path))
                 res_label = resample_image(label, target_spacing=target_spacing, is_label=True)
@@ -117,7 +118,7 @@ def batch_resample_and_save(
 
     # --- Save metadata per image
     df = pd.DataFrame(records)
-    csv_path = output_dir / "resampling_metadata.csv"
+    csv_path = output_dir.parent / f"resampling_metadata_{split}.csv"
     df.to_csv(csv_path, index=False)
     print(f"\nSaved metadata for {len(df)} cases → {csv_path}")
 
@@ -148,8 +149,13 @@ def batch_resample_and_save(
         "original_spacings": compute_shape_stats(spacings_orig_arr)
     }
 
-    stats_path = output_dir / "shape_statistics.json"
+    stats_path = output_dir.parent / f"shape_statistics_{split}.json"
     pd.DataFrame(stats).to_json(stats_path, indent=4)
     print(f"\nSaved dataset-level shape statistics → {stats_path}")
+
+ 
+    print(f" Removing temporary cropping folders:")
+    shutil.rmtree(images_dir.parent, ignore_errors=True)
+    
 
     return stats

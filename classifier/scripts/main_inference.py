@@ -1,25 +1,19 @@
 
 from pathlib import Path
-
-
-from pathlib import Path
-import argparse
-import logging
 from tqdm import tqdm
 import torch 
 import torchio as tio
 import numpy as np 
 from sklearn.metrics import  confusion_matrix, classification_report
-
-import torch.nn.functional as F
+import os
 import pandas as pd 
-from data import ColonCancer, BaseDataset 
+from classifier.data import ColonCancer, BaseDataset 
 import torchio as tio
 from collections import Counter
-from data import DataModuleCC
-from models import ResNet
-from scripts.utils.functions import str2bool
-from data.utils.functions_utils import pad_batch_with_channel
+from classifier.data import DataModuleCC
+from classifier.models import ResNet
+from classifier.scripts.utils.functions import str2bool
+from classifier.data.utils.functions_utils import pad_batch_with_channel
 import json 
 
 def get_model(config):
@@ -61,9 +55,9 @@ def run_pred(model, batch, use_softmax=True):
 
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config_file', type=str, required=True, help="Path to JSON config used for training")
+
+def main():
+    
 
     """
     parser.add_argument('--model_name', type=str, required=True, choices=['ResNet'])
@@ -82,21 +76,21 @@ if __name__ == "__main__":
     parser.add_argument('--num_workers', type=int, default=8)
     parser.add_argument('--use_last', type=str2bool, default=False, help="Whether to use the last checkpoint instead of the best one")
     """
-    args = parser.parse_args()
-    with open(args.config_file, 'r') as f:
+    config_file =Path(__file__).resolve().parent.parent / "run_config.json"
+    with open(config_file, 'r') as f:
         config = json.load(f)
 
     
-
+    path_root = Path(os.environ.get("root_path"))
     chkpt_folder = config["testing"].get("chkpt_folder", "")
-    output_dir = config["testing"].get("output_dir", "")
+    output_dir = path_root / config["testing"].get("output_dir", "")
     use_labels = config["testing"].get("use_labels", True)
     transforms = config["testing"].get("transforms", None)
     patch_size = config["testing"].get("patch_size", [64, 256, 256])
     resample_spacing = config["testing"].get("resample_spacing", [1, 1, 1])
     patch_overlap = config["testing"].get("patch_overlap", [32, 128, 128])
     aggregation_mode = config["testing"].get("aggregation_mode", "average")
-    path_root = config["training"].get("path_root", "/data/colon_cancer")
+   
     overwrite_cropping = config["testing"].get("overwrite_cropping", True)
     overwrite_resample = config["testing"].get("overwrite_resample", True)
     overwrite_window = config["testing"].get("overwrite_window", True)
@@ -105,13 +99,13 @@ if __name__ == "__main__":
     dataset_name = config["testing"].get("dataset", False)
 
     # --- Setup output folder ---
-    path_out = Path(output_dir) / Path(chkpt_folder).name
+    path_out = path_root / Path(output_dir) / Path(chkpt_folder).name
     path_out.mkdir(parents=True, exist_ok=True)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     torch.set_float32_matmul_precision('high')
 
-    if dataset_name == "ColonCancer":
+    if dataset_name == "Dataset100_CC":
           
         ds_test = ColonCancer(
             dataset_name= dataset_name,
@@ -119,7 +113,6 @@ if __name__ == "__main__":
             transforms=transforms,
             split="test",
             return_full_image=True,
-            path_root=path_root,
             use_labels=use_labels,
             overwrite_cropping=overwrite_cropping,
             overwrite_resample=overwrite_resample,
@@ -135,7 +128,6 @@ if __name__ == "__main__":
             transforms=transforms,
             split="test",
             return_full_image=True,
-            path_root=path_root,
             use_labels=use_labels,
             overwrite_cropping=overwrite_cropping,
             overwrite_resample=overwrite_resample,
@@ -178,7 +170,8 @@ if __name__ == "__main__":
 
         for patches_batch in sampler:
             patches = patches_batch['image'][tio.DATA].to(device)
-            patches = patches.permute(0, 3, 2, 1).unsqueeze(0)
+            patches = patches.unsqueeze(0)
+            #patches = patches.permute(0, 3, 2, 1).unsqueeze(0)
             preds = run_pred(model, {'source': patches}, use_softmax=True)
             preds_cpu = preds.detach().cpu()
             num_classes = preds_cpu.shape[1] if preds_cpu.ndim > 1 else 1
@@ -230,4 +223,6 @@ if __name__ == "__main__":
         f.write(report)
         f.write("\n\n=== Confusion Matrix ===\n")
         f.write(np.array2string(cm))
-    
+
+if __name__ == "__main__":
+    main()

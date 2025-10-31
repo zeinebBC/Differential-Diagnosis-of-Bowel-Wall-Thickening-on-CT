@@ -1,6 +1,5 @@
-import sys
-from pathlib import Path
 
+from pathlib import Path
 import argparse
 from datetime import datetime
 import torch
@@ -8,20 +7,13 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
 from pytorch_lightning.loggers import MLFlowLogger
 import json 
-from data import DataModuleCC  
-from models import ResNet 
-from data import ColonCancer, BaseDataset
+from classifier.data import DataModuleCC  
+from classifier.models import ResNet 
+from classifier.data import ColonCancer
+import os
+from classifier.scripts.utils.functions import str2bool
 
-from scripts.utils.functions import str2bool
 
-# ------------------------------------------
-# Helper: get_dataset       
-# ------------------------------------------
-def get_dataset(name, **kwargs):
-    if name == 'ColonCancer':
-        return ColonCancer(**kwargs)
-    else:
-        raise ValueError(f"Unknown dataset: {name}")
 # ------------------------------------------
 # Helper: get_model
 # ------------------------------------------
@@ -46,13 +38,12 @@ def get_model(config):
 # ------------------------------------------
 # Main
 # ------------------------------------------
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config_file', type=str, default=None, help="/data/benchaaben/classifier/run_config.json")
-    args = parser.parse_args()
-    #read from a config_file 
 
-    with open(args.config_file, 'r') as f:
+def main():
+    
+    #read from a config_file 
+    config_file =Path(__file__).resolve().parent.parent / "run_config.json"
+    with open(config_file, 'r') as f:
         config = json.load(f)
     
     
@@ -87,8 +78,10 @@ if __name__ == "__main__":
     
 
     # ------------ Output setup ------------
+    path_root=  os.environ.get("root_path")
+    
     current_time = datetime.now().strftime("%Y_%m_%d_%H%M%S")
-    path_run_dir = Path(config["training"]["path_root_output"]) / f'logs/{config["model"]["type"]}_{config["training"]["dataset"]}_{current_time}'
+    path_run_dir = Path(path_root) / Path(config["training"]["output_dir"]) / f'logs/{config["model"]["type"]}_{config["training"]["dataset"]}_{current_time}'
     path_run_dir.mkdir(parents=True, exist_ok=True)
     config_save_path = path_run_dir / "config.json"
     with open(config_save_path, "w") as f:
@@ -107,15 +100,15 @@ if __name__ == "__main__":
         patch_size=config["training"]["patch_size"],
         transforms=config["training"]["transforms"],
         num_patches_per_epoch=config["training"]["num_patches_per_epoch_train"],
-        fold=config["training"]["fold"],
+        #fold=config["training"]["fold"],
         split='train',
-        path_root=config["training"]["path_root"],
         use_labels=config["training"]["use_labels"],
         overwrite_cropping=config["training"]["overwrite_cropping"],
         overwrite_resample=config["training"]["overwrite_resample"],
         overwrite_window=config["training"]["overwrite_window"],
         resample_spacing=tuple(config["training"]["resample_spacing"]),
-        cross_val=config["training"]["cross_val"],
+        pp_nnunet_data=config["training"]["pp_nnunet_data"]
+        #cross_val=config["training"]["cross_val"],
         #labels_path = f"/data/colon_cancer/Classifier/resampledTr/labels_resampled"
        
         
@@ -126,10 +119,10 @@ if __name__ == "__main__":
         patch_size=config["training"]["patch_size"],
         transforms=config["training"]["transforms"],
         num_patches_per_epoch=config["training"]["num_patches_per_epoch_val"],
-        fold=config["training"]["fold"],
+        #fold=config["training"]["fold"],
         split='val',
-        path_root=config["training"]["path_root"],
         use_labels=config["training"]["use_labels"],
+        pp_nnunet_data=config["training"]["pp_nnunet_data"]
         
         #labels_path = f"/data/colon_cancer/Classifier/resampledTr/labels_resampled"
         
@@ -154,12 +147,12 @@ if __name__ == "__main__":
     # ------------ Logging and Callbacks ------------
     to_monitor = "val/ACC"
     min_max = "max"
-    path_ml_dir = Path(config["training"]["path_root_output"]) / f'mlruns'
+    path_ml_dir = Path(path_root) / Path(config["training"]["output_dir"]) / f'mlruns'
 
     logger = MLFlowLogger(
     experiment_name=f"Classifier_{config['training']['dataset']}",
     tracking_uri=f"file:{path_ml_dir}",
-    run_name=f"{config['model']['type']}_fold{config['training']['fold']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+    run_name=f"{config['model']['type']}_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
     )
     lr_monitor = LearningRateMonitor(logging_interval='step')
     early_stopping = EarlyStopping(monitor=to_monitor,min_delta=0.0, patience=50, mode=min_max)
@@ -193,3 +186,5 @@ if __name__ == "__main__":
     # ------------ Save Best Model Path ------------
     model.save_best_checkpoint(path_run_dir, checkpointing.best_model_path)
     
+if __name__ == "__main__":
+    main()

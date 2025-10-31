@@ -4,7 +4,7 @@ import nibabel as nib
 from pathlib import Path
 from glob import glob
 from tqdm import tqdm 
-
+import shutil 
 
 def window_and_normalize(image: np.ndarray, window_min=-100, window_max=500):
     """
@@ -21,6 +21,8 @@ def process_and_window_dataset(
     window_min: float = -100,
     window_max: float = 500,
     overwrite: bool = False,
+    split:str ="Tr",
+
 ):
     """
     Apply windowing and normalization to a folder of CT NIfTI images,
@@ -44,7 +46,7 @@ def process_and_window_dataset(
     stats_records = []
 
     for img_path in tqdm(image_paths, desc="Windowing + Normalizing"):
-        uid = Path(img_path).stem.replace(".nii", "")
+        uid = int(Path(img_path).stem.replace(".nii", ""))
         save_path = output_dir / f"{uid}.npz"
 
         if not overwrite and save_path.exists():
@@ -81,11 +83,14 @@ def process_and_window_dataset(
     }
 
     # Save per-image + dataset-level statistics
-    stats_csv_path = output_dir / "intensity_statistics.csv"
+    stats_csv_path = output_dir.parent / f"intensity_statistics_{split}.csv"
     df.to_csv(stats_csv_path, index=False)
 
     print(f"\nSaved windowed dataset to {output_dir}")
     print(f"Saved intensity statistics CSV to {stats_csv_path}")
     print(f"Global stats: {dataset_stats}")
 
+    
+    print(f"Removing temporary resampling folder")
+    shutil.rmtree(images_dir, ignore_errors=True)
     return dataset_stats

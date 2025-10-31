@@ -30,7 +30,8 @@
     }
   },       
   "training": {
-    "dataset": "Dataset100_CC",
+    "dataset": "ColonCancer",
+    "path_root": "/data/colon_cancer/Classifier",
    
     "resample_spacing": [1.0, 1.0, 1.0],
     "div_cases": null,
@@ -40,9 +41,9 @@
     "overwrite_cropping": false,
     "overwrite_resample": false,
     "overwrite_window": false,
-    "output_dir": "Resnet_results",
+    "path_root_output": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet",
     "use_labels": true ,
-    "pp_nnunet_data":"nnUNetPlans_3d_fullres",
+    
     "num_patches_per_epoch_train": 2500,
     "num_patches_per_epoch_val": 250,
     "batch_size": 8,
@@ -54,31 +55,30 @@
     "acc_kwargs": null
   },
   "testing": {
-    "dataset": "Dataset100_CC",
-    "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_29_102920",
-    "output_dir": "Resnet_results/inf_outputs",
+    "dataset": "Decathlon",
+    "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_27_132134",
+    "output_dir": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/inf_outputs",
     "_comment":  "/data/benchaaben/ColonCancerDetection/classifier/resampledTs/labels_resampled      ResNet_ColonCancer_2025_10_21_174228",
     "patch_size": [ 32, 156, 156],
-    "resample_spacing": [1,1, 1],
+    "resample_spacing": [0.73828125,0.73828125, 0.8999999761581421],
     "patch_overlap": [16, 64, 64],
-    "use_labels": true,
     "aggregation_mode": "average",
-    
-    "pp_nnunet_data": null,
-    "overwrite_cropping": false,
-    "overwrite_resample": false,
-    "overwrite_window": false,
+    "path_root": "/data/colon_cancer/Classifier",
+    "overwrite_cropping": true,
+    "overwrite_resample": true,
+    "overwrite_window": true,
     "num_workers": 8,
     "use_last": false
   },
   "gradcam": {
-    "dataset": "Dataset100_CC",
-    "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_29_102920",
+    "dataset": "ColonCancer",
+    "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_21_094127",
     "use_labels": true,
-    "output_dir": "Resnet_results/gradcam_output",
+    "output_dir": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/gradcam_output",
+    "path_root": "/data/colon_cancer/Classifier",
     "patch_size": [32, 156, 156],
     "patch_overlap": [16, 64, 64],
-    "list_cases": [18,29,52,86,120,151,206],
+    "list_cases": [18,339,29,530,206,86,300,646],
     "target_class": null,
     "alpha": 0.35,
     "use_last": false 

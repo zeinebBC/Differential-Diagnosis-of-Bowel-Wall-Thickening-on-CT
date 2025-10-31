@@ -20,5 +20,5 @@ checkpoints/
 *.pth
 *.pkl
 
-# Classifier outputs
+# Classifier outputsN
 classifier/runs_Resnet/

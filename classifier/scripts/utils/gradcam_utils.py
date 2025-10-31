@@ -14,8 +14,7 @@ class GradCAM3D:
     """
     Minimal Grad-CAM for 3D ResNet-like models.
 
-    target_module should be the last convolutional block whose output feature map
-    feeds the global pooling (typically layer4 or its last block).
+ 
     """
     def __init__(self, model: torch.nn.Module, target_module: torch.nn.Module, device: torch.device):
         self.model = model
@@ -26,6 +25,8 @@ class GradCAM3D:
         self.gradients: Optional[torch.Tensor] = None
         self.fwd_handle = None
         self.bwd_handle = None
+        self.global_min = float('inf')
+        self.global_max = float('-inf')
         self._register_hooks()
 
     def _register_hooks(self):
@@ -40,10 +41,8 @@ class GradCAM3D:
         self.bwd_handle = self.target_module.register_full_backward_hook(bwd_hook)
 
     def remove_hooks(self):
-        if self.fwd_handle is not None:
-            self.fwd_handle.remove()
-        if self.bwd_handle is not None:
-            self.bwd_handle.remove()
+        if self.fwd_handle: self.fwd_handle.remove()
+        if self.bwd_handle: self.bwd_handle.remove()
 
     @torch.no_grad()
     def _resize_like_input(self, cam: torch.Tensor, input_3d: torch.Tensor) -> torch.Tensor:
@@ -81,12 +80,12 @@ class GradCAM3D:
         cam = (weights * self.activations).sum(dim=1, keepdim=True)    # [B, 1, d, h, w]
         cam = F.relu(cam)
 
-        # Normalize per-sample to [0, 1]
-        cam_min = cam.flatten(1).min(dim=1)[0].view(-1, 1, 1, 1, 1)
-        cam_max = cam.flatten(1).max(dim=1)[0].view(-1, 1, 1, 1, 1)
-        cam_norm = (cam - cam_min) / (cam_max - cam_min + 1e-6)
+        self.global_min = min(self.global_min, cam.min().item())
+        self.global_max = max(self.global_max, cam.max().item())
+        #cam_norm = (cam - self.global_min) / (self.global_max - self.global_min + 1e-6)
 
-        cam_resized = self._resize_like_input(cam_norm, input_3d)
+
+        cam_resized = self._resize_like_input(cam, input_3d)
         return cam_resized
 
 
@@ -103,7 +102,7 @@ def find_target_module_for_resnet3d(model: ResNet) -> torch.nn.Module:
     """
     
     # layer4 is a Sequential of BasicBlock/Bottleneck; hook the last block.
-    last_block = model.model.layer4[-1]
+    last_block = model.model.layer4[-1].conv2
     return last_block
 
 
@@ -121,6 +120,8 @@ def save_cam_nifti(cam: torch.Tensor, out_path: Path):
 def overlay_and_save_slices(
     volume: torch.Tensor,
     cam: torch.Tensor,
+    min:int,
+    max:int,
     label: Optional[torch.Tensor],
     out_png: Path,
     alpha: float = 0.20,
@@ -137,10 +138,11 @@ def overlay_and_save_slices(
     """
     vol = volume.squeeze().numpy()
     heat = cam.squeeze().numpy()
+    heat = (heat - min) / (max - min + 1e-6)
     lbl = label.squeeze().numpy() if label is not None else None
     if vol.ndim == 4:
         vol = vol[0,...]
-    H,W,D = vol.shape
+    D,W,H = vol.shape
     z_slices = np.linspace(0, D - 1, num_slices, dtype=int)
 
     rows = 3 if label is not None else 2
@@ -152,24 +154,24 @@ def overlay_and_save_slices(
     # Row 1: image
     for i, z in enumerate(z_slices):
         ax = axes[0, i] if rows > 1 else axes[i]
-        ax.imshow(vol[:,:,z], cmap="gray")
+        ax.imshow(vol[z,:,:], cmap="gray")
         ax.set_title(f"z={z}")
         ax.axis("off")
 
     # Row 2: image + CAM
     for i, z in enumerate(z_slices):
         ax = axes[1, i] if rows > 1 else axes[i]
-        ax.imshow(vol[:,:,z], cmap="gray")
-        ax.imshow(heat[:,:,z], cmap="jet", alpha=alpha, vmin=0, vmax=1)
+        ax.imshow(vol[z,:,:], cmap="gray")
+        ax.imshow(heat[z,:,:], cmap="jet", alpha=alpha, vmin=0, vmax=1)
         ax.axis("off")
 
     # Row 3: image + label
     if label is not None:
         for i, z in enumerate(z_slices):
             ax = axes[2, i]
-            ax.imshow(vol[:,:,z], cmap="gray")
+            ax.imshow(vol[z,:,:], cmap="gray")
             # show label as contour/overlay
-            ax.imshow(np.ma.masked_where(lbl[:,:,z] == 0, lbl[:,:,z]), cmap="autumn", alpha=0.35)
+            ax.imshow(np.ma.masked_where(lbl[z,:,:] == 0, lbl[z,:,:]), cmap="autumn", alpha=0.35)
             ax.axis("off")
 
     fig.tight_layout()
@@ -182,12 +184,15 @@ def load_case_from_dataset(ds: ColonCancer, uid: int,  in_ch=1) -> Tuple[torch.T
     if not match:
         raise ValueError(f"UID '{uid}' not found in dataset.")
     
-    label_path = ds.labels_path / f"{uid}.nii.gz"
+    label_path = ds.labels_path / f"{uid}_seg.nii.gz"
            
     label = load_volume(label_path)
     uid, img_path, target = match[0]
     data = load_volume(img_path)
-    
+
+    label = np.transpose(label,(2,1,0))
+    data = np.transpose(data,(2,1,0))
+
     if in_ch == 1:
         data = torch.from_numpy(data).float().unsqueeze(0).unsqueeze(0)   
         label = torch.from_numpy(label).long().unsqueeze(0).unsqueeze(0)

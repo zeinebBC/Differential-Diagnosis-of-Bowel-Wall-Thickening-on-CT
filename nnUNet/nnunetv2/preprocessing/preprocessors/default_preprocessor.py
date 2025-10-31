@@ -85,10 +85,10 @@ class DefaultPreprocessor(object):
         properties['bbox_used_for_cropping'] = bbox
         # print(data.shape, seg.shape)
         properties['shape_after_cropping_and_before_resampling'] = data.shape[1:]
-
+        
         # resample
         target_spacing = configuration_manager.spacing  # this should already be transposed
-
+        properties["target_spacing"]=target_spacing
         if len(target_spacing) < len(data.shape[1:]):
             # target spacing for 2d has 2 entries but the data and original_spacing have three because everything is 3d
             # in 2d configuration we do not change the spacing between slices

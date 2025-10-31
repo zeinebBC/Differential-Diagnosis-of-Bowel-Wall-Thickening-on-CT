@@ -1,7 +1,7 @@
 import torch 
 import torch.nn as nn 
 import monai.networks.nets as nets
-from models.base_model import BasicClassifier
+from classifier.models.base_model import BasicClassifier
 import torchvision.models as models
 
 import os
@@ -70,6 +70,21 @@ class ResNet(BasicClassifier):
                     nn.Flatten(1),
                     nn.Linear(resnet_out_ch, emb_ch)
                 )
+                """
+                self.model = nn.Sequential(
+                    resnet,
+                    GetLast(),
+                    nn.AdaptiveAvgPool3d(1),
+                    nn.Flatten(1),
+                    nn.Linear(resnet_out_ch, 256),
+                    nn.LeakyReLU(),
+                    nn.Dropout(0.4),
+                    nn.Linear(256, 128),
+                    nn.LeakyReLU(),
+                    nn.Dropout(0.4),
+                    nn.Linear(128, emb_ch),
+                )
+                """
             elif spatial_dims==2:
                 Model = _get_resnet_torch(model)
                 self.model =  Model(weights=None)
