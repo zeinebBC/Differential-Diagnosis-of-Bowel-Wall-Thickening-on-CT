@@ -171,3 +171,7 @@
         }
     ]
 }
+
+CUDA_VISIBLE_DEVICES=2 nohup /data/environments/.micromamba/envs/nnunet_env/bin/python -m nnunetv2.run.run_training 102 3d_fullres 0 \
+-pl nnUNetResEncUNetLPlans -pretrained_weights /data/colon_cancer/nnUNet_results/Dataset100_CC/nnUNetTrainer__nnUNetResEncUNetLPlans__3d_fullres/fold_0/checkpoint_best.pth \
+> nnunet_train_102_fold0.log 2>&1 &
