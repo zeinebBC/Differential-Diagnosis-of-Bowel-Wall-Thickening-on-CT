@@ -5,7 +5,7 @@
     "out_ch": 2,
     "spatial_dims": 3,
     "resnet_model": 18,
-    "pretrained": false,
+    "pretrained": true,
     "kwargs_resnet": {}
   },
   "loss": {
@@ -17,7 +17,7 @@
   "optimizer": {
     "type": "torch.optim.sgd.SGD",
     "kwargs": {
-      "lr": 0.01,
+      "lr": 0.001,
       "momentum": 0.9,
       "weight_decay": 0.01
     }
@@ -42,7 +42,7 @@
     "overwrite_window": false,
     "output_dir": "Resnet_results",
     "use_labels": true ,
-    "pp_nnunet_data":"nnUNetPlans_3d_fullres",
+    "pp_nnunet_data":null,
     "num_patches_per_epoch_train": 2500,
     "num_patches_per_epoch_val": 250,
     "batch_size": 8,
@@ -71,17 +71,19 @@
     "num_workers": 8,
     "use_last": false
   },
-  "gradcam": {
+  "cam": {
     "dataset": "Dataset100_CC",
+    "method": "scorecam",
     "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_29_102920",
     "use_labels": true,
-    "output_dir": "Resnet_results/gradcam_output",
+    "output_dir": "Resnet_results/cam_output",
     "patch_size": [32, 156, 156],
     "patch_overlap": [16, 64, 64],
-    "list_cases": [18,29,52,86,120,151,206],
+    "list_cases": [18,29,52,86,120,151,206], 
     "target_class": null,
     "alpha": 0.35,
-    "use_last": false 
+    "use_last": false,
+    "normalization_mode" : "patch"
   }
 }
 

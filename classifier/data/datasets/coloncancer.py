@@ -69,7 +69,7 @@ class BaseDataset(data.Dataset):
         self.dataset_name = dataset_name
         
         self.epoch = 0 
-        self.splits_file = self.path_root / Path(f"raw_data") / self.dataset_name / f"splits.csv" 
+        self.splits_file = self.path_root / Path(f"raw_data") / self.dataset_name / Path(f"splits.csv" )
         self.labels_file = self.path_root /  Path(f"raw_data") / self.dataset_name / f"labels.csv"
         self.use_labels= use_labels
         # ----------------------------
@@ -323,8 +323,10 @@ class BaseDataset(data.Dataset):
             path_data = self.path_root /  f"raw_data"  / self.dataset_name 
 
 
-        images_dir = path_data / f"images{split}"
-        labels_dir = path_data / f"labels{split}" if use_gt else path_data / f"predictionsTr"
+        #images_dir = path_data / f"images{split}"
+        #labels_dir = path_data / f"labels{split}" if use_gt else path_data / f"predictionsTr"
+        images_dir= Path(f"/data/colon_cancer/nnUNet_raw/Dataset100_CC/imagesTr")
+        labels_dir=Path(f"/data/colon_cancer/labelsTr_finetuned_finetuned_012")
      
         # ----------------------------
         # Create splits
@@ -390,7 +392,6 @@ class ColonCancer(BaseDataset):
         dataset_name="ColonCancer",
         transforms=None,
         num_patches_per_epoch=None,
-        path_root=None,
         split=None,
         return_full_image=False,
         use_labels=None,

@@ -144,7 +144,7 @@ class nnUNetTrainer(object):
 
         ### Some hyperparameters for you to fiddle with
         
-        self.initial_lr = 3e-4
+        self.initial_lr = 5e-4
         self.weight_decay = 1e-05
         self.oversample_foreground_percent = 0.33
         self.probabilistic_oversampling = False

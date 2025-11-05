@@ -58,6 +58,19 @@ class ResNet(BasicClassifier):
                         new_state_dict[k[7:]] = v
                     else:
                         new_state_dict[k] = v
+                if "conv1.weight" in new_state_dict:
+                    pretrained_conv1 = new_state_dict["conv1.weight"]
+                    if pretrained_conv1.shape[1] != in_ch:
+                        print(
+                            f"[INFO] Adjusting conv1 weights: pretrained has {pretrained_conv1.shape[1]} input channel(s), "
+                            f"but model expects {in_ch}. Adapting weights..."
+                        )
+                        if pretrained_conv1.shape[1] == 1:
+                            # replicate the single channel across input channels
+                            new_state_dict["conv1.weight"] = pretrained_conv1.repeat(1, in_ch, 1, 1, 1) / in_ch
+                        else:
+                            # average pretrained channels then repeat to match input channels
+                            new_state_dict["conv1.weight"] = pretrained_conv1.mean(dim=1, keepdim=True).repeat(1, in_ch, 1, 1, 1)
 
                 resnet.load_state_dict(new_state_dict)
 

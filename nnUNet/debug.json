@@ -123,7 +123,7 @@
             "type": "python",
             "request": "launch",
             "module": "scripts.grad_cam",
-            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "pythonPath": "/data/environments/.micromamba/envs/cc_env/bin/python",
             "cwd": "/data/benchaaben/ColonCancerDetection/classifier",
             "args": [
                 "--config_file","/data/benchaaben/ColonCancerDetection/classifier/run_config.json",

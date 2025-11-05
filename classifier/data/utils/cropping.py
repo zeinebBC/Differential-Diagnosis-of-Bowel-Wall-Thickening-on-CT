@@ -11,6 +11,8 @@ from typing import Tuple, List
 import numpy as np
 from classifier.data.utils.functions_utils import load_volume
 import pickle 
+from acvl_utils.morphology.morphology_helper import remove_all_but_largest_component 
+import os
 def voxels_from_mm(spacing, margin_mm: Tuple[float, float, float]):
     """Convert physical margin in mm to voxel units (rounding up)."""
     return tuple([int(np.ceil(mm / sp)) for mm, sp in zip(margin_mm, spacing)])
@@ -44,6 +46,7 @@ def crop_to_bbox(data: np.ndarray, bbox: Sequence[Sequence[int]]):
 
 
 def crop_to_label_region(data: np.ndarray,
+                         crop_mask :np.ndarray,
                          seg: np.ndarray,
                          spacing: Tuple[float, float, float],
                          margin_min: float = 15.0) -> Tuple[np.ndarray, np.ndarray, List[Tuple[int, int]]]:
@@ -62,7 +65,7 @@ def crop_to_label_region(data: np.ndarray,
         bbox (List[Tuple[int, int]]): voxel bounding box
     """
     margin_vox = voxels_from_mm(spacing, (margin_min, margin_min, margin_min))
-    bbox = get_bbox_from_mask_with_margin(seg, margin_vox)
+    bbox = get_bbox_from_mask_with_margin(crop_mask, margin_vox)
 
     data_cropped = crop_to_bbox(data, bbox)
     seg_cropped = crop_to_bbox_no_channels(seg, bbox)
@@ -117,7 +120,9 @@ def batch_crop_and_save(
             print(f"Skipping {uid}, already cropped.")
             continue
         
-        label_path = labels_dir / f"{uid}.nii.gz"
+        label_path = labels_dir / f"{uid:03d}.nii.gz"
+        colon_label_path = Path( os.environ.get("auto_seg_path")) / Path(f"{uid}.nii.gz")
+
         if not label_path.exists():
             print(f"Label not found for {uid}, skipping.")
             continue
@@ -126,7 +131,19 @@ def batch_crop_and_save(
         seg_nii = nib.load(str(label_path))
         data = img_nii.get_fdata().astype(np.float32)
         seg = seg_nii.get_fdata().astype(np.uint8)
-
+    
+        ######################################################################################
+        seg_before = seg.sum()
+        seg = remove_all_but_largest_component(seg)
+        seg = seg.astype(np.uint8)
+        print(f"[{uid}] Kept {seg.sum()} / {seg_before} voxels after cleaning.")
+        ########################################################################################
+        if seg.sum() == 0 and colon_label_path.exists():
+            colon_seg_nii = nib.load(str(colon_label_path))
+            colon_seg = colon_seg_nii.get_fdata().astype(np.uint8)
+            crop_mask = colon_seg
+        else:
+            crop_mask = seg
         if data.ndim == 3:
             data = data[None, ...]
 
@@ -136,7 +153,7 @@ def batch_crop_and_save(
 
         # ---- Crop to ROI
         data_cropped, seg_cropped, bbox = crop_to_label_region(
-            data, seg, spacing, margin_min=margin_min
+            data=data, crop_mask=crop_mask,seg=seg, spacing=spacing, margin_min=margin_min
         )
         cropped_shape = list(data_cropped.shape[1:])
         cropped_shapes.append(cropped_shape)
