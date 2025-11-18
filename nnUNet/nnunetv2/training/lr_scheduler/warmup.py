@@ -141,3 +141,44 @@ class CosineAnnealingLR_offset(CosineAnnealingLR):
                 param_group["lr"] = lr
 
         self._last_lr: List[float] = [group["lr"] for group in self.optimizer.param_groups]
+
+
+class PolyLRScheduler_offset_min(_LRScheduler):
+    def __init__(
+        self,
+        optimizer,
+        initial_lr: float,
+        max_steps: int,
+        start_step: int,
+        min_lr: float = 0.0,
+        exponent: float = 0.9,   
+        current_step: int = None,
+    ):
+        self.optimizer = optimizer
+        self.initial_lr = initial_lr
+        self.max_steps = max_steps - start_step
+        self.start_step = start_step
+        self.exponent = exponent
+        self.min_lr = min_lr          
+        self.ctr = 0
+        super().__init__(optimizer, current_step if current_step is not None else -1)
+
+    def step(self, current_step=None):
+        if current_step is None or current_step == -1:
+            current_step = self.ctr
+            self.ctr += 1
+
+        # Adjust step based on offset
+        current_step = current_step - self.start_step
+        if current_step <= 0:
+            current_step = 0
+
+        # Polynomial decay
+        poly_lr = self.initial_lr * (1 - current_step / self.max_steps) ** self.exponent
+
+        # Clamp to min_lr
+        new_lr = max(self.min_lr, poly_lr)
+
+        # Apply LR to optimizer
+        for param_group in self.optimizer.param_groups:
+            param_group["lr"] = new_lr

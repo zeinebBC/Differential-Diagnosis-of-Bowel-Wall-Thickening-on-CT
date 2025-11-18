@@ -325,8 +325,10 @@ class BaseDataset(data.Dataset):
 
         #images_dir = path_data / f"images{split}"
         #labels_dir = path_data / f"labels{split}" if use_gt else path_data / f"predictionsTr"
-        images_dir= Path(f"/data/colon_cancer/nnUNet_raw/Dataset100_CC/imagesTr")
-        labels_dir=Path(f"/data/colon_cancer/labelsTr_finetuned_finetuned_012")
+        #images_dir= Path(f"/data/colon_cancer/CC_Detection/raw_data/Dataset100_CC/imagesTs")
+        #labels_dir=Path(f"/data/colon_cancer/CC_Detection/raw_data/Dataset100_CC/labelsTs")
+        images_dir= Path(f"/data/colon_cancer/Classifier/Decathlon/raw_splitted/imagesTs")
+        labels_dir=Path(f"/data/colon_cancer/Classifier/Decathlon/raw_splitted/labelsTs")
      
         # ----------------------------
         # Create splits

@@ -182,3 +182,8 @@ predict_resnet --config_file /data/benchaaben/ColonCancerDetection/classifier/ru
 - Outputs:
   - Classification report: `path_root_output/checkpoint_ref/classification_report.txt`
   - Detailed results: `path_root_output/checkpoint_ref/results.csv`
+
+
+
+
+

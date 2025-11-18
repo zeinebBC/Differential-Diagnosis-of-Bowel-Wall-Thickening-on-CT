@@ -4,8 +4,8 @@
     "in_ch": 2,
     "out_ch": 2,
     "spatial_dims": 3,
-    "resnet_model": 18,
-    "pretrained": true,
+    "resnet_model": 34,
+    "pretrained": false,
     "kwargs_resnet": {}
   },
   "loss": {
@@ -15,17 +15,16 @@
     }
   },
   "optimizer": {
-    "type": "torch.optim.sgd.SGD",
+    "type": "torch.optim.Adam",
     "kwargs": {
       "lr": 0.001,
-      "momentum": 0.9,
       "weight_decay": 0.01
     }
   },
   "lr_scheduler": {
     "type": "torch.optim.lr_scheduler.StepLR",
     "kwargs": {
-      "step_size": 5,
+      "step_size": 10,
       "gamma": 0.1
     }
   },       
@@ -41,11 +40,11 @@
     "overwrite_resample": false,
     "overwrite_window": false,
     "output_dir": "Resnet_results",
-    "use_labels": true ,
+    "use_labels": false ,
     "pp_nnunet_data":null,
     "num_patches_per_epoch_train": 2500,
     "num_patches_per_epoch_val": 250,
-    "batch_size": 8,
+    "batch_size": 32,
     "patch_size": [32, 156, 156],
     "resume_from_checkpoint": null
   },
@@ -55,9 +54,9 @@
   },
   "testing": {
     "dataset": "Dataset100_CC",
-    "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_29_102920",
-    "output_dir": "Resnet_results/inf_outputs",
-    "_comment":  "/data/benchaaben/ColonCancerDetection/classifier/resampledTs/labels_resampled      ResNet_ColonCancer_2025_10_21_174228",
+    "chkpt_folder": "/data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_05_150300",
+    "output_dir": "Resnet_results/inf_outputs", 
+    "_comment":  "/data/benchaaben/ColonCancerDetection/classifier/resampledTs/labels_resampled   ResNet_ColonCancer_2025_10_29_102920   ResNet_ColonCancer_2025_10_21_174228",
     "patch_size": [ 32, 156, 156],
     "resample_spacing": [1,1, 1],
     "patch_overlap": [16, 64, 64],
@@ -65,16 +64,16 @@
     "aggregation_mode": "average",
     
     "pp_nnunet_data": null,
-    "overwrite_cropping": false,
-    "overwrite_resample": false,
-    "overwrite_window": false,
+    "overwrite_cropping": true,
+    "overwrite_resample": true,
+    "overwrite_window": true,
     "num_workers": 8,
     "use_last": false
   },
   "cam": {
     "dataset": "Dataset100_CC",
     "method": "scorecam",
-    "chkpt_folder": "/data/benchaaben/ColonCancerDetection/classifier/runs_Resnet/logs/ResNet_ColonCancer_2025_10_29_102920",
+    "chkpt_folder": "/data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_05_150300",
     "use_labels": true,
     "output_dir": "Resnet_results/cam_output",
     "patch_size": [32, 156, 156],

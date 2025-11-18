@@ -156,7 +156,7 @@ def main():
 
     # --- Inference ---
     results = []
-    for n, batch in enumerate(tqdm(dm.test_dataloader())):
+    for n, batch in tqdm(dm.test_dataloader()):
         image, target, uid = batch['source'], batch['target'], batch['uid']
         image, target = image.to(device), target.to(device)
         image = pad_batch_with_channel(image, patch_size, constant_values=0)[0]

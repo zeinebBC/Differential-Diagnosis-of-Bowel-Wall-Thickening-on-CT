@@ -175,3 +175,50 @@
 CUDA_VISIBLE_DEVICES=2 nohup /data/environments/.micromamba/envs/nnunet_env/bin/python -m nnunetv2.run.run_training 102 3d_fullres 0 \
 -pl nnUNetResEncUNetLPlans -pretrained_weights /data/colon_cancer/nnUNet_results/Dataset100_CC/nnUNetTrainer__nnUNetResEncUNetLPlans__3d_fullres/fold_0/checkpoint_best.pth \
 > nnunet_train_102_fold0.log 2>&1 &
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "module": "scripts.run",
+            "pythonPath": "/data/environments/.micromamba/envs/dino_env/bin/python",
+            "cwd": "/data/benchaaben/DINOv2-3D-Med",
+            "args": [
+                "fit",
+                "--config_file=./configs/train.yaml,./configs/models/primus.yaml,./configs/datasets/amos.yaml"
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2",
+                
+
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug ColonCancer Classifier",
+            "type": "python",
+            "request": "launch",
+            "module": "main_dicom",
+            "pythonPath": "/data/environments/.micromamba/envs/nnunet_env/bin/python",
+            "cwd": "/data/benchaaben/DINOv2-3D-Med",
+            "args": [
+                "/data2/ct_stagings/dicom", "-o", "/data2/ct_stagings/pp_output", "--metadata-only"
+            ],
+            "env": {
+                "CUDA_VISIBLE_DEVICES": "2",
+                
+
+            },
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}

@@ -120,7 +120,7 @@ def batch_crop_and_save(
             print(f"Skipping {uid}, already cropped.")
             continue
         
-        label_path = labels_dir / f"{uid:03d}.nii.gz"
+        label_path = labels_dir / f"{uid}.nii.gz"
         colon_label_path = Path( os.environ.get("auto_seg_path")) / Path(f"{uid}.nii.gz")
 
         if not label_path.exists():
