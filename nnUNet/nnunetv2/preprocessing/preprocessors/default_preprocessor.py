@@ -37,7 +37,7 @@ from nnunetv2.utilities.utils import get_filenames_of_train_images_and_targets
 
 
 class DefaultPreprocessor(object):
-    def __init__(self, verbose: bool = True, crop_mode: str="none"):
+    def __init__(self, verbose: bool = True, crop_mode: str="colon"):
         self.verbose = verbose
         self.crop_mode = crop_mode
         """
@@ -70,7 +70,11 @@ class DefaultPreprocessor(object):
 
         spacing = properties['spacing']
         if not seg is None:
-            seg[data < -75] = 0
+            if data.shape[0]>1:
+                seg[data[0:1,...] < -75] = 0
+            else:
+                seg[data < -75] = 0
+
         if self.crop_mode=="colon":
             data, seg, bbox = crop_to_colon(data, seg,case_id,spacing)
         elif self.crop_mode=="gt":
@@ -104,7 +108,22 @@ class DefaultPreprocessor(object):
         # print('current shape', data.shape[1:], 'current_spacing', original_spacing,
         #       '\ntarget shape', new_shape, 'target_spacing', target_spacing)
         old_shape = data.shape[1:]
-        data = configuration_manager.resampling_fn_data(data, new_shape, original_spacing, target_spacing)
+        if data.shape[0]==2:
+            image_channel = data[0:1]  
+            seg_channel   = data[1:2]  
+
+            # Resample each channel
+            resampled_image = configuration_manager.resampling_fn_data(
+                image_channel, new_shape, original_spacing, target_spacing
+            )
+            resampled_seg = configuration_manager.resampling_fn_seg(
+                seg_channel, new_shape, original_spacing, target_spacing
+            )
+
+            # Recombine into single tensor
+            data = np.concatenate([resampled_image, resampled_seg], axis=0)
+        else: 
+            data = configuration_manager.resampling_fn_data(data, new_shape, original_spacing, target_spacing)
         seg = configuration_manager.resampling_fn_seg(seg, new_shape, original_spacing, target_spacing)
         if self.verbose:
             print(f'old shape: {old_shape}, new_shape: {new_shape}, old_spacing: {original_spacing}, '

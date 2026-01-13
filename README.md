@@ -84,7 +84,7 @@ export auto_seg_path="/data/colon_cancer/totalseg/total"            # colon anno
 export nnUNet_raw="/data/colon_cancer/CC_Detection/raw_data"         # raw data
 export nnUNet_preprocessed="/data/colon_cancer/CC_Detection/pp_data" # preprocessed data
 export nnUNet_results="/data/colon_cancer/CC_Detection/nnUNet_results" # training logs/results
-export root_path = "/data/colon_cancer/CC_Detection"
+export root_path="/data/colon_cancer/CC_Detection"
 ```
 
 #### 2) Train segmentation and classification models

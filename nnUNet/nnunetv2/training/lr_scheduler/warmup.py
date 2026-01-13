@@ -1,7 +1,7 @@
 import math
 import warnings
 from typing import Optional, cast, List
-
+import torch
 from torch import Tensor
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler, CosineAnnealingLR, _enable_get_lr_call
@@ -74,6 +74,37 @@ class PolyLRScheduler_offset(_LRScheduler):
         new_lr = self.initial_lr * (1 - current_step / self.max_steps) ** self.exponent
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = new_lr
+
+class CosineAnnealingWarmRestarts_Offset(torch.optim.lr_scheduler.CosineAnnealingWarmRestarts):
+    def __init__(
+        self,
+        optimizer,
+        T_0,
+        T_mult=1,
+        eta_min=0,
+        last_epoch=-1,
+        verbose=False,
+        offset=0
+    ):
+        self.offset = offset
+        super().__init__(
+            optimizer,
+            T_0=T_0,
+            T_mult=T_mult,
+            eta_min=eta_min,
+            last_epoch=last_epoch,
+        )
+
+    def _get_lr(self, base_lr):
+        # same logic as cosine schedule, but shift epoch by offset
+        cycle_progress = (self.last_epoch - self.offset - self.T_cur) / self.T_i
+        return self.eta_min + (base_lr - self.eta_min) * (1 + math.cos(math.pi * cycle_progress)) / 2
+
+    def get_lr(self):
+        if self.last_epoch < self.offset:
+            # Before offset: return base LR unchanged
+            return list(self.base_lrs)
+        return [self._get_lr(base_lr) for base_lr in self.base_lrs]
 
 
 class CosineAnnealingLR_offset(CosineAnnealingLR):
@@ -182,3 +213,96 @@ class PolyLRScheduler_offset_min(_LRScheduler):
         # Apply LR to optimizer
         for param_group in self.optimizer.param_groups:
             param_group["lr"] = new_lr
+
+class LinearWarmRestarts(_LRScheduler):
+    def __init__(self, optimizer, T_0, eta_min=0, hold_offset=0, last_epoch=-1):
+        """
+        T_0: length of each linear decay cycle (in epochs)
+        eta_min: minimum learning rate at end of cycle
+        hold_offset: number of epochs/steps to hold LR constant at the initial base_lr
+        """
+        self.T_0 = T_0
+        self.eta_min = eta_min
+        # --- NEW PARAMETER ---
+        self.hold_offset = hold_offset
+        super().__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        # 1. Check for the HOLD PHASE
+        if self.last_epoch < self.hold_offset:
+            # Return the initial base_lr (MAX_LR) for the hold duration
+            return self.base_lrs 
+        
+        # 2. Calculate the effective epoch for cycling
+        # Cycling only starts after the hold phase is complete
+        effective_epoch = self.last_epoch - self.hold_offset
+        
+        # 3. Calculate position within the current cycle
+        cycle_epoch = effective_epoch % self.T_0
+        
+        # 4. Calculate the linear decay factor
+        if self.T_0 <= 1:
+            decay_factor = 0.0
+        else:
+            # Use T_0 - 1 in the denominator to ensure MIN_LR is exactly hit
+            decay_factor = (1 - cycle_epoch / (self.T_0 - 1)) 
+    
+        # 5. Return the calculated LR
+        return [
+            self.eta_min + (base_lr - self.eta_min) * decay_factor
+            for base_lr in self.base_lrs
+        ]
+    
+
+class CyclicalCosineLR(_LRScheduler):
+    def __init__(self, optimizer, max_lr, min_lr, step_size, hold_offset=0, last_epoch=-1):
+        """
+        Implements a smooth triangular cycle using cosine interpolation.
+        
+        max_lr: Upper boundary of the learning rate (base_lr is set to this).
+        min_lr: Lower boundary of the learning rate.
+        step_size: Number of steps/epochs for ONE HALF cycle (e.g., max_lr to min_lr).
+        hold_offset: number of epochs/steps to hold LR constant at the initial max_lr.
+        """
+        self.max_lr = max_lr
+        self.min_lr = min_lr
+        self.step_size = step_size
+        self.hold_offset = hold_offset
+        
+        optimizer.param_groups[0]['lr'] = max_lr 
+        
+        super().__init__(optimizer, last_epoch)
+
+    def get_lr(self):
+        # 1. Check for the HOLD PHASE
+        if self.last_epoch < self.hold_offset:
+            # LR is fixed at the initial max_lr during the offset
+            return [self.max_lr] * len(self.base_lrs)
+        
+        # 2. Calculate effective epoch after the hold
+        effective_epoch = self.last_epoch - self.hold_offset
+        
+        # Total length of the full cycle is 2 * step_size
+        cycle_length = 2 * self.step_size
+        
+        # Position in current cycle (0 to cycle_length - 1)
+        cycle_position = effective_epoch % cycle_length
+        
+         
+        if cycle_position < self.step_size:
+         
+            decay_fraction = cycle_position / self.step_size
+            cosine_scale = 0.5 * (1 + math.cos(math.pi * decay_fraction)) 
+   
+        else:
+          
+            reheat_position = cycle_position - self.step_size
+            reheat_fraction = reheat_position / self.step_size
+            cosine_scale = 0.5 * (1 - math.cos(math.pi * reheat_fraction))
+    
+        lr_range = self.max_lr - self.min_lr
+        
+        return [
+            self.min_lr + lr_range * cosine_scale
+            for base_lr in self.base_lrs
+        ]

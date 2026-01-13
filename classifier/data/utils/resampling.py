@@ -37,7 +37,6 @@ def batch_resample_and_save(
     root_dir: str,
     output_dir: str,
     target_spacing: tuple = (0.7, 0.7, 0.8),
-    overwrite: bool = False,
     split:str ="Tr",
 
 ):
@@ -49,7 +48,6 @@ def batch_resample_and_save(
         output_dir (str): base directory to save resampled outputs
         target_spacing (tuple): desired voxel spacing (z, y, x)
         labels_dir (str, optional): directory with label files (if provided)
-        overwrite (bool): whether to overwrite existing files
     """
     images_dir = Path(root_dir) / "images_cropped"
     labels_dir = Path(root_dir) / "labels_cropped" 
@@ -73,7 +71,7 @@ def batch_resample_and_save(
         out_img_path = resampled_images_dir / f"{uid}.nii.gz"
        
 
-        if not overwrite and out_img_path.exists():
+        if out_img_path.exists():
             print(f"Skipping {uid}, already resampled.")
             continue
 

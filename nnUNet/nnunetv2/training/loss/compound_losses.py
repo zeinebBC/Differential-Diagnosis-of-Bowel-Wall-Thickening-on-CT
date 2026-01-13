@@ -3,11 +3,12 @@ from nnunetv2.training.loss.dice import SoftDiceLoss, MemoryEfficientSoftDiceLos
 from nnunetv2.training.loss.robust_ce_loss import RobustCrossEntropyLoss, TopKLoss, GeneralizedCrossEntropyLoss
 from nnunetv2.utilities.helpers import softmax_helper_dim1
 from torch import nn
+from nnunetv2.training.loss.utils_losses import FocalLoss, FocalTverskyLoss, JaccardLoss
 
 
 class DC_and_CE_loss(nn.Module):
     def __init__(self, soft_dice_kwargs, ce_kwargs, weight_ce=1, weight_dice=1, ignore_label=None,
-                 dice_class=SoftDiceLoss):
+                 dice_class=SoftDiceLoss, weight_penalty=1):
         """
         Weights for CE and Dice do not need to sum to one. You can set whatever you want.
         :param soft_dice_kwargs:
@@ -24,12 +25,13 @@ class DC_and_CE_loss(nn.Module):
         self.weight_dice = weight_dice
         self.weight_ce = weight_ce
         self.ignore_label = ignore_label
+        self.weight_penalty = weight_penalty
 
         self.ce = RobustCrossEntropyLoss(**ce_kwargs)
         #self.ce = GeneralizedCrossEntropyLoss(**ce_kwargs )
         self.dc = dice_class(apply_nonlin=softmax_helper_dim1, **soft_dice_kwargs)
 
-    def forward(self, net_output: torch.Tensor, target: torch.Tensor):
+    def forward(self, net_output: torch.Tensor, target: torch.Tensor, distance_map:torch.Tensor=None):
         """
         target must be b, c, x, y(, z) with c=1
         :param net_output:
@@ -52,9 +54,18 @@ class DC_and_CE_loss(nn.Module):
             if self.weight_dice != 0 else 0
         ce_loss = self.ce(net_output, target[:, 0]) \
             if self.weight_ce != 0 and (self.ignore_label is None or num_fg > 0) else 0
-
-        result = self.weight_ce * ce_loss + self.weight_dice * dc_loss
+        
+        """"
+        penalty_loss = 0
+        if distance_map is not None and self.weight_penalty > 0:
+            prob_fg = torch.softmax(net_output, dim=1)[:, 1:2]  # assume channel 1 = FG
+            dist_map_norm = torch.log1p(distance_map).to(prob_fg.device)
+            penalty_loss = (prob_fg * dist_map_norm).mean()
+        """
+        result = self.weight_ce * ce_loss + self.weight_dice * dc_loss # + self.weight_penalty * penalty_loss
         return result
+
+
 
 
 class DC_and_BCE_loss(nn.Module):
@@ -155,3 +166,91 @@ class DC_and_topk_loss(nn.Module):
 
         result = self.weight_ce * ce_loss + self.weight_dice * dc_loss
         return result
+
+
+class CE_and_FocalTverskyLoss(nn.Module):
+    def __init__(self, focal_tversky_kwargs, ce_kwargs, weight_focal_tversky=1, weight_ce=1):
+        super().__init__()
+        self.weight_focal_tversky = weight_focal_tversky
+        self.weight_ce = weight_ce
+
+        self.ce = RobustCrossEntropyLoss(**ce_kwargs)
+        self.ftv = FocalTverskyLoss( **focal_tversky_kwargs)
+
+    def forward(self, net_output, target):
+        ftv_loss = self.ftv(net_output, target) if self.weight_focal_tversky else 0
+        ce_loss = self.ce(net_output, target) if self.weight_ce else 0
+        return self.weight_ce * ce_loss + self.weight_focal_tversky * ftv_loss
+    
+class CE_and_FocalTversky_withPenalty(nn.Module):
+    def __init__(self, focal_tversky_kwargs, ce_kwargs,
+                 weight_focal_tversky=1, weight_ce=1, weight_penalty=1):
+        """
+        Combines Cross-Entropy, Focal Tversky Loss, and an optional distance map penalty.
+        :param focal_tversky_kwargs: kwargs for FocalTverskyLoss
+        :param ce_kwargs: kwargs for RobustCrossEntropyLoss
+        :param weight_focal_tversky: weight for Focal Tversky Loss
+        :param weight_ce: weight for Cross-Entropy
+        :param weight_penalty: weight for distance map penalty
+        """
+        super().__init__()
+        self.weight_focal_tversky = weight_focal_tversky
+        self.weight_ce = weight_ce
+        self.weight_penalty = weight_penalty
+
+        self.ce = RobustCrossEntropyLoss(**ce_kwargs)
+        self.ftv = FocalTverskyLoss(**focal_tversky_kwargs)
+
+    def forward(self, net_output: torch.Tensor, target: torch.Tensor, distance_map: torch.Tensor = None):
+        # Compute Focal Tversky loss
+        ftv_loss = self.ftv(net_output, target) if self.weight_focal_tversky != 0 else 0
+        # Compute Cross-Entropy loss
+        ce_loss = self.ce(net_output, target) if self.weight_ce != 0 else 0
+
+        # Compute optional distance map penalty
+        penalty_loss = 0
+        if distance_map is not None and self.weight_penalty > 0:
+            # assume channel 1 = foreground
+            prob_fg = torch.softmax(net_output, dim=1)[:, 1:2]
+            dist_map_norm = torch.log1p(distance_map).to(prob_fg.device)
+            penalty_loss = (prob_fg * dist_map_norm).mean()
+
+        # Combine all losses
+        total_loss = (self.weight_ce * ce_loss +
+                      self.weight_focal_tversky * ftv_loss +
+                      self.weight_penalty * penalty_loss)
+        return total_loss
+
+
+class Jaccard_and_CE_loss(nn.Module):
+    def __init__(self, jaccard_kwargs, ce_kwargs, weight_ce=1, weight_jaccard=1):
+        super().__init__()
+        self.weight_jaccard = weight_jaccard
+        self.weight_ce = weight_ce
+
+        self.ce = RobustCrossEntropyLoss(**ce_kwargs)
+        self.jaccard = JaccardLoss( **jaccard_kwargs)
+
+    def forward(self, net_output, target):
+        jaccard_loss = self.jaccard(net_output, target) if self.weight_jaccard else 0
+        ce_loss = self.ce(net_output, target) if self.weight_ce else 0
+        return self.weight_ce * ce_loss + self.weight_jaccard * jaccard_loss
+
+
+class DC_and_FocalLoss(nn.Module):
+    def __init__(self, soft_dice_kwargs, focal_kwargs, weight_focal=1, weight_dice=1):
+        super().__init__()
+
+        self.weight_dice = weight_dice
+        self.weight_focal = weight_focal
+   
+
+        self.focal = FocalLoss(**focal_kwargs)
+        self.dc = SoftDiceLoss( **soft_dice_kwargs)
+
+    def forward(self, net_output, target):
+     
+        dc_loss = self.dc(net_output, target) if self.weight_dice else 0
+        focal_loss = self.focal(net_output, target) if self.weight_focal else 0
+
+        return self.weight_focal * focal_loss + self.weight_dice * dc_loss

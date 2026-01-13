@@ -1,88 +1,125 @@
 {
-  "model": {
-    "type": "ResNet",
-    "in_ch": 2,
-    "out_ch": 2,
-    "spatial_dims": 3,
-    "resnet_model": 34,
-    "pretrained": false,
-    "kwargs_resnet": {}
-  },
-  "loss": {
-    "type": "torch.nn.modules.loss.CrossEntropyLoss",
-    "kwargs": {
-      "weight": [0.6, 0.4]
+    "model": {
+        "type": "ResNet",
+        "in_ch": 1,
+        "out_ch": 2,
+        "spatial_dims": 3,
+        "resnet_model": 18,
+        "pretrained": false,
+        "kwargs_resnet": {}
+    },
+    "loss": {
+        "type": "torch.nn.modules.loss.CrossEntropyLoss",
+        "kwargs": {
+            "weight": [
+                2.0, 2.5, 1.67
+            ]
+        }
+    },
+    "optimizer": {
+        "type": "torch.optim.sgd.SGD",
+        "kwargs": {
+            "lr": 0.01,
+            "weight_decay": 0.01
+        }
+    },
+    "lr_scheduler": {
+        "type": "torch.optim.lr_scheduler.StepLR",
+        "kwargs": {
+            "step_size": 10,
+            "gamma": 0.1
+        }
+    },
+    "training": {
+        "dataset": "Dataset107_CC",
+        "resample_spacing": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "div_cases": null,
+        "transforms": null,
+        "num_workers": 4,
+        "num_epochs": 100,
+        "overwrite_cropping": false,
+        "overwrite_resample": false,
+        "overwrite_window": false,
+        "output_dir": "Resnet_results",
+        "use_labels": true,
+        "pp_nnunet_data": null,
+        "use_gt": false,
+        "num_patches_per_epoch_train":2500, 
+        "num_patches_per_epoch_val": 250,    
+        "batch_size": 8,
+        "patch_size": [
+            32,
+            156,
+            156
+        ],
+        "resume_from_checkpoint": null
+    },
+    "metrics": {
+        "f1_kwargs": null,
+        "acc_kwargs": null
+    },
+    "testing": {
+        "dataset": "Dataset100_CC",
+        "chkpt_folder": "/data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_06_085145",
+        "output_dir": "Resnet_results/inf_outputs",
+        "_comment": " /data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_05_150300 /data/benchaaben/ColonCancerDetection/classifier/resampledTs/labels_resampled   ResNet_ColonCancer_2025_10_29_102920   ResNet_ColonCancer_2025_10_21_174228 /data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_26_140955 /data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset107_CC_2025_12_21_194622",
+        "patch_size": [
+            32,
+            156,
+            156
+        ],
+        "resample_spacing": [
+            1,
+            1,
+            1
+        ],
+        "patch_overlap": [
+            16,
+            64,
+            64
+        ],
+        "use_labels": false,
+        "aggregation_mode": "average",
+        "pp_nnunet_data": null,
+        "overwrite_cropping": false,
+        "overwrite_resample": false,
+        "overwrite_window": false,
+        "num_workers": 8,
+        "use_last": false,
+        "use_sliding_window": false
+    },
+    "cam": {
+        "dataset": "Dataset_CC_reduced",
+        "method": "scorecam",
+        "chkpt_folder": "/data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_05_150300",
+        "use_labels": true,
+        "output_dir": "Resnet_results/cam_output",
+        "patch_size": [
+            32,
+            156,
+            156
+        ],
+        "patch_overlap": [
+            16,
+            64,
+            64
+        ],
+        "list_cases": [
+            18,
+            29,
+            52,
+            86,
+            120,
+            151,
+            206
+        ],
+        "target_class": null,
+        "alpha": 0.35,
+        "use_last": false,
+        "normalization_mode": "patch"
     }
-  },
-  "optimizer": {
-    "type": "torch.optim.Adam",
-    "kwargs": {
-      "lr": 0.001,
-      "weight_decay": 0.01
-    }
-  },
-  "lr_scheduler": {
-    "type": "torch.optim.lr_scheduler.StepLR",
-    "kwargs": {
-      "step_size": 10,
-      "gamma": 0.1
-    }
-  },       
-  "training": {
-    "dataset": "Dataset100_CC",
-   
-    "resample_spacing": [1.0, 1.0, 1.0],
-    "div_cases": null,
-    "transforms": null,
-    "num_workers": 4,
-    "num_epochs": 100,
-    "overwrite_cropping": false,
-    "overwrite_resample": false,
-    "overwrite_window": false,
-    "output_dir": "Resnet_results",
-    "use_labels": false ,
-    "pp_nnunet_data":null,
-    "num_patches_per_epoch_train": 2500,
-    "num_patches_per_epoch_val": 250,
-    "batch_size": 32,
-    "patch_size": [32, 156, 156],
-    "resume_from_checkpoint": null
-  },
-  "metrics": {
-    "f1_kwargs": null,
-    "acc_kwargs": null
-  },
-  "testing": {
-    "dataset": "Dataset100_CC",
-    "chkpt_folder": "/data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_05_150300",
-    "output_dir": "Resnet_results/inf_outputs", 
-    "_comment":  "/data/benchaaben/ColonCancerDetection/classifier/resampledTs/labels_resampled   ResNet_ColonCancer_2025_10_29_102920   ResNet_ColonCancer_2025_10_21_174228",
-    "patch_size": [ 32, 156, 156],
-    "resample_spacing": [1,1, 1],
-    "patch_overlap": [16, 64, 64],
-    "use_labels": true,
-    "aggregation_mode": "average",
-    
-    "pp_nnunet_data": null,
-    "overwrite_cropping": true,
-    "overwrite_resample": true,
-    "overwrite_window": true,
-    "num_workers": 8,
-    "use_last": false
-  },
-  "cam": {
-    "dataset": "Dataset100_CC",
-    "method": "scorecam",
-    "chkpt_folder": "/data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_05_150300",
-    "use_labels": true,
-    "output_dir": "Resnet_results/cam_output",
-    "patch_size": [32, 156, 156],
-    "patch_overlap": [16, 64, 64],
-    "list_cases": [18,29,52,86,120,151,206], 
-    "target_class": null,
-    "alpha": 0.35,
-    "use_last": false,
-    "normalization_mode" : "patch"
-  }
 }
-

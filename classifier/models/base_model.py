@@ -248,8 +248,9 @@ class BasicClassifier(BaseModel):
 
         # Choose sensible default losses if not provided
         loss = loss if loss is not None else (nn.BCEWithLogitsLoss if self.is_binary else nn.CrossEntropyLoss)
-        loss_kwargs = {"pos_weight": torch.tensor([0.4 / 0.6]) }  if self.is_binary else {"weight": torch.tensor([0.4, 0.6], dtype=torch.float)}
-        
+        #loss_kwargs = {"pos_weight": torch.tensor([0.4 / 0.6]) }  if self.is_binary else {"weight": torch.tensor([2.0, 2.5, 1.67], dtype=torch.float)}
+        loss_kwargs = {"pos_weight": torch.tensor([0.4 / 0.6]) }  if self.is_binary else {"weight": torch.tensor([0.6, 0.4], dtype=torch.float)}
+
 
         super().__init__(
             optimizer=optimizer,

@@ -14,7 +14,7 @@ from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDatasetBlosc2
 from nnunetv2.utilities.label_handling.label_handling import LabelManager
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
 from acvl_utils.cropping_and_padding.bounding_boxes import crop_and_pad_nd
-
+from scipy.ndimage import distance_transform_edt 
 
 class nnUNetDataLoader(DataLoader):
     def __init__(self,
@@ -170,12 +170,14 @@ class nnUNetDataLoader(DataLoader):
         data_all = np.zeros(self.data_shape, dtype=np.float32)
         seg_all = np.zeros(self.seg_shape, dtype=np.int16)
 
+
         for j, i in enumerate(selected_keys):
             # oversampling foreground will improve stability of model training, especially if many patches are empty
             # (Lung for example)
             force_fg = self.get_do_oversample(j)
 
             data, seg, seg_prev, properties = self._data.load_case(i)
+
 
             # If we are doing the cascade then the segmentation from the previous stage will already have been loaded by
             # self._data.load_case(i) (see nnUNetDataset.load_case)
@@ -191,6 +193,7 @@ class nnUNetDataLoader(DataLoader):
             if seg_prev is not None:
                 seg_cropped = np.vstack((seg_cropped, crop_and_pad_nd(seg_prev, bbox, -1)[None]))
             seg_all[j] = seg_cropped
+
 
         if self.patch_size_was_2d:
             data_all = data_all[:, :, 0]
@@ -212,10 +215,32 @@ class nnUNetDataLoader(DataLoader):
                         seg_all = [torch.stack([s[i] for s in segs]) for i in range(len(segs[0]))]
                     else:
                         seg_all = torch.stack(segs)
-                    del segs, images
-            return {'data': data_all, 'target': seg_all, 'keys': selected_keys}
 
-        return {'data': data_all, 'target': seg_all, 'keys': selected_keys}
+                    dst_all = None 
+
+                    """
+                    if isinstance(segs[0], list):
+                        dst_all = [torch.zeros_like(s, dtype=torch.float32) for s in seg_all]
+                        for i in range(len(dst_all)):
+                            for b in range(self.batch_size):
+                                dst_all[i][b] = torch.from_numpy(distance_transform_edt(segs[b][i].cpu().numpy() == 0).astype(np.float32))
+                    else:
+                        dst_all = torch.zeros_like(seg_all, dtype=torch.float32)
+                        for b in range(self.batch_size):
+                            dst_all[b] = torch.from_numpy(distance_transform_edt(segs[b].cpu().numpy() == 0).astype(np.float32))
+                    
+                    """
+                    del segs, images
+            return {'data': data_all, 'target': seg_all, 'keys': selected_keys} #, "dst_map": dst_all}
+        
+        dst_all = np.zeros(self.seg_shape, dtype=np.float32)  # distance maps as float32
+
+        for j in range(self.batch_size):
+            dst_all[j] = distance_transform_edt(seg_all[j].cpu().numpy() == 0).astype(np.float32)
+        data_all = torch.from_numpy(data_all).float()
+        seg_all = torch.from_numpy(seg_all).to(torch.int16)
+        dst_all = torch.from_numpy(dst_all).float()
+        return {'data': data_all, 'target': seg_all, 'keys': selected_keys, "dst_map": dst_all}
 
 
 if __name__ == '__main__':

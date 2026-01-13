@@ -103,7 +103,11 @@ class DatasetFingerprintExtractor(object):
         #data_cropped, seg_cropped, bbox = crop_to_nonzero(images, segmentation)
         spacing = properties_images['spacing']
         case_id = f"{int(Path(segmentation_file).name.replace('.nii.gz', ''))}.nii.gz"
-        segmentation[images < -75] = 0
+        if images.shape[0]>1:
+            segmentation[images[0:1,...] < -75] = 0
+        else:
+            segmentation[images < -75] = 0
+            
         if crop_mode=="colon":
             data_cropped, seg_cropped, bbox = crop_to_colon(images, segmentation, case_id,spacing)
         elif crop_mode=="gt":

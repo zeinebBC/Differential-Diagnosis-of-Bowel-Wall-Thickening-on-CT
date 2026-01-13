@@ -20,7 +20,6 @@ def process_and_window_dataset(
     output_dir: str,
     window_min: float = -100,
     window_max: float = 500,
-    overwrite: bool = False,
     split:str ="Tr",
 
 ):
@@ -33,7 +32,7 @@ def process_and_window_dataset(
         output_dir (str): Folder to save processed .npz files.
         window_min (float): Minimum Hounsfield value for windowing.
         window_max (float): Maximum Hounsfield value for windowing.
-        overwrite (bool): Whether to overwrite existing files.
+     
     """
     images_dir = Path(images_dir)
     output_dir = Path(output_dir)
@@ -49,7 +48,7 @@ def process_and_window_dataset(
         uid = int(Path(img_path).stem.replace(".nii", ""))
         save_path = output_dir / f"{uid}.npz"
 
-        if not overwrite and save_path.exists():
+        if save_path.exists():
             print(f"Skipping {uid} (already processed)")
             continue
 

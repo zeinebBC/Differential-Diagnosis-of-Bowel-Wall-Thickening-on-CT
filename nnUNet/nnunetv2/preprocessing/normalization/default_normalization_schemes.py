@@ -67,11 +67,14 @@ class CTNormalization(ImageNormalization):
         image /= max(std_intensity, 1e-8)
         return image
         """
-        max = 500
-        min = -100
+        min =-100 #-1024 
+        max = 500 #3071 
         image = np.clip(image, min, max)
         image = (image-min) / (max-min)
         return image 
+       
+        
+        
 
 
 class NoNormalization(ImageNormalization):

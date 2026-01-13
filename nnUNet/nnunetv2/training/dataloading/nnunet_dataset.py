@@ -14,7 +14,8 @@ from batchgenerators.utilities.file_and_folder_operations import join, load_pick
 from nnunetv2.configuration import default_num_processes
 from nnunetv2.training.dataloading.utils import unpack_dataset
 import math
-
+import nibabel as nib
+from pathlib import Path
 
 class nnUNetBaseDataset(ABC):
     """
@@ -86,6 +87,7 @@ class nnUNetDatasetNumpy(nnUNetBaseDataset):
 
         properties = load_pickle(join(self.source_folder, identifier + '.pkl'))
         return data, seg, seg_prev, properties
+    
 
     @staticmethod
     def save_case(
@@ -127,7 +129,26 @@ class nnUNetDatasetBlosc2(nnUNetBaseDataset):
 
     def __getitem__(self, identifier):
         return self.load_case(identifier)
+   
 
+    def load_distance_map(self, identifier):
+        """
+        Load a distance map for a given identifier from a folder.
+
+        Args:
+            dist_folder (str or Path): Path to the folder containing distance maps.
+            uid (str or int): Identifier of the case (filename without extension).
+
+        Returns:
+            np.ndarray: Loaded distance map as a NumPy array.
+        """
+        dist_path = Path(join(self.source_folder, identifier + '_seg_dist.npy'))
+        if dist_path.exists():
+            data = np.load(dist_path)
+            return data
+            
+        else: 
+            return None 
     def load_case(self, identifier):
         dparams = {
             'nthreads': 1

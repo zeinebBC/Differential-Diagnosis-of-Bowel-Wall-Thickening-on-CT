@@ -33,8 +33,8 @@ keywords = [
 
 dependencies = [
     "mlflow>=3.4.0",
-    "torch>=2.1.2,<2.6",  # keep max compatible with your list
-    "torchvision>=0.20.1,<0.21",
+    #"torch>=2.1.2,<2.6",  # keep max compatible with your list
+    #"torchvision>=0.20.1,<0.21",
     "torchio==0.20.23",
     "torchmetrics==1.8.2",
     "pytorch_lightning==2.5.5",

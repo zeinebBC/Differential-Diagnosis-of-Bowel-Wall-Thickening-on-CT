@@ -67,7 +67,12 @@ def crop_to_label_region(data: np.ndarray,
     margin_vox = voxels_from_mm(spacing, (margin_min, margin_min, margin_min))
     bbox = get_bbox_from_mask_with_margin(crop_mask, margin_vox)
 
-    data_cropped = crop_to_bbox(data, bbox)
+    if data.ndim == 4:
+        data_cropped = crop_to_bbox(data, bbox)
+    elif data.ndim == 3:
+        data_cropped = crop_to_bbox_no_channels(data, bbox)  
+
+ 
     seg_cropped = crop_to_bbox_no_channels(seg, bbox)
 
     return data_cropped, seg_cropped, bbox
@@ -80,9 +85,9 @@ def batch_crop_and_save(
     labels_dir: str,
     output_dir: str,
     margin_min: float = 15.0,
-    overwrite: bool = False,
     crop_labels: bool = True,
     split:str ="Tr",
+    crop_to_colon: bool = False
 ):
     """
     Crop all images in a dataset to their label-defined ROI and save results + metadata.
@@ -92,7 +97,6 @@ def batch_crop_and_save(
         labels_dir (str): directory with corresponding label maps
         output_dir (str): output folder to store cropped results
         margin_min (float): margin (in mm) around labeled region
-        overwrite (bool): overwrite existing files if True
         crop_labels (bool): whether to crop the label maps along with images
     """
     images_dir = Path(images_dir)
@@ -116,7 +120,7 @@ def batch_crop_and_save(
         out_img_path = cropped_images_dir / f"{uid}.nii.gz"
         out_label_path = cropped_labels_dir / f"{uid}.nii.gz" if crop_labels else None
 
-        if not overwrite and out_img_path.exists():
+        if out_img_path.exists():
             print(f"Skipping {uid}, already cropped.")
             continue
         
@@ -133,12 +137,12 @@ def batch_crop_and_save(
         seg = seg_nii.get_fdata().astype(np.uint8)
     
         ######################################################################################
-        seg_before = seg.sum()
-        seg = remove_all_but_largest_component(seg)
-        seg = seg.astype(np.uint8)
-        print(f"[{uid}] Kept {seg.sum()} / {seg_before} voxels after cleaning.")
+        #seg_before = seg.sum()
+        #seg = remove_all_but_largest_component(seg)
+        #seg = seg.astype(np.uint8)
+        #print(f"[{uid}] Kept {seg.sum()} / {seg_before} voxels after cleaning.")
         ########################################################################################
-        if seg.sum() == 0 and colon_label_path.exists():
+        if (seg.sum() == 0 or crop_to_colon ) and colon_label_path.exists():
             colon_seg_nii = nib.load(str(colon_label_path))
             colon_seg = colon_seg_nii.get_fdata().astype(np.uint8)
             crop_mask = colon_seg

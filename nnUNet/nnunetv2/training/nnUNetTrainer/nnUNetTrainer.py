@@ -57,7 +57,7 @@ from nnunetv2.training.loss.compound_losses import DC_and_CE_loss, DC_and_BCE_lo
 from nnunetv2.training.loss.deep_supervision import DeepSupervisionWrapper
 from nnunetv2.training.loss.dice import get_tp_fp_fn_tn, MemoryEfficientSoftDiceLoss
 from nnunetv2.training.lr_scheduler.polylr import PolyLRScheduler
-from nnunetv2.training.lr_scheduler.warmup import  PolyLRScheduler_offset_min, PolyLRScheduler_offset
+from nnunetv2.training.lr_scheduler.warmup import  PolyLRScheduler_offset_min, PolyLRScheduler_offset, CosineAnnealingWarmRestarts_Offset,  LinearWarmRestarts, CyclicalCosineLR
 from nnunetv2.utilities.collate_outputs import collate_outputs
 from nnunetv2.utilities.crossval_split import generate_crossval_split
 from nnunetv2.utilities.default_n_proc_DA import get_allowed_n_proc_DA
@@ -67,7 +67,7 @@ from nnunetv2.utilities.helpers import empty_cache, dummy_context
 from nnunetv2.utilities.label_handling.label_handling import convert_labelmap_to_one_hot, determine_num_input_channels
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
 
-
+from nnunetv2.training.loss.compound_losses import FocalTverskyLoss, CE_and_FocalTverskyLoss, DC_and_FocalLoss, CE_and_FocalTversky_withPenalty
 class nnUNetTrainer(object):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict,
                  device: torch.device = torch.device('cuda')):
@@ -156,13 +156,13 @@ class nnUNetTrainer(object):
         """
 
         
-        self.initial_lr = 3e-4          #1e-2
-        self.weight_decay = 1e-5   #3e-5
-        self.oversample_foreground_percent = 0.33     
+        self.initial_lr = 1e-2 #3e-4          #1e-2
+        self.weight_decay = 3e-5    #1e-5   #3e-5
+        self.oversample_foreground_percent = 0.4    #0.33     
         self.probabilistic_oversampling = False
         self.num_iterations_per_epoch = 350 #250
         self.num_val_iterations_per_epoch = 100 #50
-        self.num_epochs = 1100
+        self.num_epochs = 600   #1100
         self.current_epoch = 0
         self.enable_deep_supervision = True
         
@@ -404,6 +404,11 @@ class nnUNetTrainer(object):
             self.oversample_foreground_percent = oversample_percent
 
     def _build_loss(self):
+        #loss =  DC_and_FocalLoss({'batch_dice': self.configuration_manager.batch_dice,
+        #                           'smooth': 1e-5, 'do_bg': False, 'ddp': self.is_ddp}, {"gamma":2.0, reduction='mean'},weight_focal=1, weight_dice=1 )
+        #loss =  Jaccard_and_CE_loss({ "smooth":1e-6},{},weight_ce=1, weight_jaccard=1)
+        #loss = CE_and_FocalTversky_withPenalty({"alpha":0.3, "beta":0.7, "gamma":2., "eps":1e-6},{},weight_focal_tversky=1, weight_ce=1,weight_penalty=1)
+        
         if self.label_manager.has_regions:
             loss = DC_and_BCE_loss({},
                                    {'batch_dice': self.configuration_manager.batch_dice,
@@ -414,10 +419,16 @@ class nnUNetTrainer(object):
             loss = DC_and_CE_loss({'batch_dice': self.configuration_manager.batch_dice,
                                    'smooth': 1e-5, 'do_bg': False, 'ddp': self.is_ddp}, {}, weight_ce=1, weight_dice=1,
                                   ignore_label=self.label_manager.ignore_label, dice_class=MemoryEfficientSoftDiceLoss)
-
+        
         if self._do_i_compile():
-            loss.dc = torch.compile(loss.dc)
+            if hasattr(loss, "dc") and callable(loss.dc):
+                loss.dc = torch.compile(loss.dc)
 
+            # If your new loss has a focal_tversky component you want to compile:
+            if hasattr(loss, "ftv") and callable(loss.ftv):
+                loss.ftv = torch.compile(loss.ftv)
+                
+            
         # we give each output a weight which decreases exponentially (division by 2) as the resolution decreases
         # this gives higher resolution outputs more weight in the loss
 
@@ -520,11 +531,16 @@ class nnUNetTrainer(object):
             self.print_to_log_file('These are the global plan.json settings:\n', dct, '\n', add_timestamp=False)
 
     def configure_optimizers(self):
-        #optimizer = torch.optim.SGD(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay,momentum=0.99, nesterov=True)
-        optimizer = torch.optim.Adam(self.network.parameters(),lr=self.initial_lr,weight_decay=self.weight_decay)
+        optimizer = torch.optim.SGD(self.network.parameters(), self.initial_lr, weight_decay=self.weight_decay,momentum=0.99, nesterov=True)
+
+        #optimizer = torch.optim.Adam(self.network.parameters(),lr=self.initial_lr,weight_decay=self.weight_decay)
         #lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
-        #lr_scheduler = PolyLRScheduler_offset_min(optimizer, self.initial_lr, self.num_epochs, self.num_epochs) 
-        lr_scheduler = PolyLRScheduler_offset_min(optimizer, self.initial_lr, self.num_epochs, self.num_epochs-100, 1e-6) 
+        #lr_scheduler = PolyLRScheduler_offset(optimizer, self.initial_lr, self.num_epochs, self.num_epochs) 
+        lr_scheduler = PolyLRScheduler_offset_min(optimizer, self.initial_lr, self.num_epochs, self.num_epochs-590, 1e-6) #-100
+        #lr_scheduler = CosineAnnealingWarmRestarts_Offset( optimizer, T_0=60, T_mult=1, eta_min=1e-5, offset=5    )
+        #lr_scheduler = LinearWarmRestarts( optimizer, T_0=300, eta_min=1e-5, hold_offset=20)
+        #lr_scheduler = CyclicalCosineLR(optimizer, max_lr=1e-2, min_lr=1e-5, step_size=50, hold_offset=20)
+        
         return optimizer, lr_scheduler
 
     def plot_network_architecture(self):
@@ -990,6 +1006,7 @@ class nnUNetTrainer(object):
     def train_step(self, batch: dict) -> dict:
         data = batch['data']
         target = batch['target']
+        #dst_map = batch["dst_map"]
 
         data = data.to(self.device, non_blocking=True)
         if isinstance(target, list):
@@ -1006,6 +1023,12 @@ class nnUNetTrainer(object):
             output = self.network(data)
             # del data
             l = self.loss(output, target)
+            """
+            try:
+                l = self.loss(output, target, dst_map)
+            except TypeError:
+                l = self.loss(output, target)
+            """
 
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
@@ -1037,6 +1060,7 @@ class nnUNetTrainer(object):
     def validation_step(self, batch: dict) -> dict:
         data = batch['data']
         target = batch['target']
+        #dst_map = batch["dst_map"]
 
         data = data.to(self.device, non_blocking=True)
         if isinstance(target, list):
@@ -1051,8 +1075,14 @@ class nnUNetTrainer(object):
         with autocast(self.device.type, enabled=True) if self.device.type == 'cuda' else dummy_context():
             output = self.network(data)
             del data
+            #l = self.loss(output, target, dst_map)
             l = self.loss(output, target)
-
+            """
+            try:
+                l = self.loss(output, target, dst_map)
+            except TypeError:
+                l = self.loss(output, target)
+            """ 
         # we only need the output with the highest output resolution (if DS enabled)
         if self.enable_deep_supervision:
             output = output[0]

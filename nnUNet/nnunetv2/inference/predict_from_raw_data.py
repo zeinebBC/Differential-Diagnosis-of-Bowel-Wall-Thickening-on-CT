@@ -930,7 +930,7 @@ def predict_entry_point():
     parser.add_argument('--disable_progress_bar', action='store_true', required=False, default=False,
                         help='Set this flag to disable progress bar. Recommended for HPC environments (non interactive '
                              'jobs)')
-    parser.add_argument("-crop_mode",type=str, default="none",
+    parser.add_argument("-crop_mode",type=str, default="colon",
                         help="choose cropping method among: colon(crop to the colon region using TotalSegmentator labels)," \
                         " gt(crop to the actual bowel wall thickening area), none(use full image) ")
     

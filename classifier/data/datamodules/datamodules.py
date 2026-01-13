@@ -16,7 +16,9 @@ class DataModuleCC(pl.LightningDataModule):
                  batch_size_test=None,
                  num_workers=mp.cpu_count(),
                  seed=42,
-                 pin_memory=False):
+                 shuffle=False,
+                 pin_memory=False,
+                 persistent_workers=False):
         super().__init__()
         self.ds_train = ds_train
         self.ds_val = ds_val
@@ -25,11 +27,11 @@ class DataModuleCC(pl.LightningDataModule):
         self.batch_size = batch_size
         self.batch_size_val = batch_size if batch_size_val is None else batch_size_val
         self.batch_size_test = batch_size if batch_size_test is None else batch_size_test
-
+        self.shuffle = shuffle
         self.num_workers = num_workers
         self.seed = seed
         self.pin_memory = pin_memory
-
+        self.persistent_workers = persistent_workers
     # ----------------------------
     # Training loader
     # ----------------------------
@@ -40,9 +42,10 @@ class DataModuleCC(pl.LightningDataModule):
             self.ds_train,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
-            shuffle=False,               
+            shuffle=self.shuffle,               
             drop_last=True,
-            pin_memory=self.pin_memory
+            pin_memory=self.pin_memory,
+            persistent_workers=self.persistent_workers
         )
 
     # ----------------------------
@@ -55,9 +58,10 @@ class DataModuleCC(pl.LightningDataModule):
             self.ds_val,
             batch_size=self.batch_size_val,
             num_workers=self.num_workers,
-            shuffle=False,
+            shuffle=self.shuffle,
             drop_last=False,
-            pin_memory=self.pin_memory
+            pin_memory=self.pin_memory,
+            persistent_workers=self.persistent_workers
         )
 
     # ----------------------------
