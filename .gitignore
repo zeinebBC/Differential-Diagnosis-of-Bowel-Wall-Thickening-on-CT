@@ -15,6 +15,7 @@ venv/
 .DS_Store
 *.log
 *.out
+*.txt
 # Data and large folders
 checkpoints/
 *.pth

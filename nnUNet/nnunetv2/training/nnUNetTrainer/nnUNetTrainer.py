@@ -160,9 +160,9 @@ class nnUNetTrainer(object):
         self.weight_decay = 3e-5    #1e-5   #3e-5
         self.oversample_foreground_percent = 0.4    #0.33     
         self.probabilistic_oversampling = False
-        self.num_iterations_per_epoch = 350 #250
-        self.num_val_iterations_per_epoch = 100 #50
-        self.num_epochs = 600   #1100
+        self.num_iterations_per_epoch = 300 #250
+        self.num_val_iterations_per_epoch = 60 #50
+        self.num_epochs = 1000   #1100
         self.current_epoch = 0
         self.enable_deep_supervision = True
         
@@ -536,7 +536,7 @@ class nnUNetTrainer(object):
         #optimizer = torch.optim.Adam(self.network.parameters(),lr=self.initial_lr,weight_decay=self.weight_decay)
         #lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         #lr_scheduler = PolyLRScheduler_offset(optimizer, self.initial_lr, self.num_epochs, self.num_epochs) 
-        lr_scheduler = PolyLRScheduler_offset_min(optimizer, self.initial_lr, self.num_epochs, self.num_epochs-590, 1e-6) #-100
+        lr_scheduler = PolyLRScheduler_offset_min(optimizer, self.initial_lr, self.num_epochs, self.num_epochs-950, 1e-8) #-100
         #lr_scheduler = CosineAnnealingWarmRestarts_Offset( optimizer, T_0=60, T_mult=1, eta_min=1e-5, offset=5    )
         #lr_scheduler = LinearWarmRestarts( optimizer, T_0=300, eta_min=1e-5, hold_offset=20)
         #lr_scheduler = CyclicalCosineLR(optimizer, max_lr=1e-2, min_lr=1e-5, step_size=50, hold_offset=20)
