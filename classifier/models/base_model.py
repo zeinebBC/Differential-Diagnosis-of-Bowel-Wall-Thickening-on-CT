@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Optional, Union
 import json
 import inspect
 
@@ -37,12 +37,13 @@ class BaseModel(pl.LightningModule):
         self,
         optimizer: Union[type, Callable[..., torch.optim.Optimizer]] = torch.optim.Adam,
         optimizer_kwargs: Dict[str, Any] = None,
-        lr_scheduler: Optional[Union[type, Callable[..., torch.optim.lr_scheduler._LRScheduler]]] = None,
+        lr_scheduler: Optional[
+            Union[type, Callable[..., torch.optim.lr_scheduler._LRScheduler]]
+        ] = None,
         lr_scheduler_kwargs: Dict[str, Any] = None,
         loss: Optional[Union[type, Callable[..., nn.Module]]] = None,
         loss_kwargs: Optional[Dict[str, Any]] = None,
         save_hyperparameters: bool = True,
-
     ):
         super().__init__()
 
@@ -61,8 +62,6 @@ class BaseModel(pl.LightningModule):
         self.loss_class = loss or nn.CrossEntropyLoss
         self.loss_kwargs = loss_kwargs or {}
         self.loss_func = self.loss_class(**self.loss_kwargs)
-
-         
 
     def forward(self, x, cond=None):
         raise NotImplementedError
@@ -107,16 +106,22 @@ class BaseModel(pl.LightningModule):
 
     def on_test_epoch_end(self) -> None:
         self._epoch_end("test")
-    
+
     def on_fit_start(self) -> None:
         return
-        #self.log_model_config()
-    
+        # self.log_model_config()
+
     def configure_optimizers(self):
         optimizer = self.optimizer_class(self.parameters(), **self.optimizer_kwargs)
         if self.lr_scheduler_class is not None:
-            lr_scheduler = self.lr_scheduler_class(optimizer, **self.lr_scheduler_kwargs)
-            lr_scheduler_config = {"scheduler": lr_scheduler, "interval": "epoch", "frequency": 1}
+            lr_scheduler = self.lr_scheduler_class(
+                optimizer, **self.lr_scheduler_kwargs
+            )
+            lr_scheduler_config = {
+                "scheduler": lr_scheduler,
+                "interval": "epoch",
+                "frequency": 1,
+            }
             return [optimizer], [lr_scheduler_config]
         return [optimizer]
 
@@ -130,19 +135,19 @@ class BaseModel(pl.LightningModule):
         with open(Path(path_checkpoint_dir) / "best_checkpoint.json", "r") as f:
             path_rel_best_checkpoint = Path(json.load(f)["best_model_epoch"])
         return Path(path_checkpoint_dir) / path_rel_best_checkpoint
-    
+
     @classmethod
     def _get_last_checkpoint_path(cls, path_checkpoint_dir, **kwargs):
-        checkpoint = Path(path_checkpoint_dir)/ "last.ckpt" 
+        checkpoint = Path(path_checkpoint_dir) / "last.ckpt"
         if not checkpoint:
             raise FileNotFoundError(f"No last.ckpt found in {path_checkpoint_dir}")
         return checkpoint
-    
+
     @classmethod
     def load_last_checkpoint(cls, path_checkpoint_dir, **kwargs):
         path_last_checkpoint = cls._get_last_checkpoint_path(path_checkpoint_dir)
         return cls.load_from_checkpoint(path_last_checkpoint, **kwargs)
-    
+
     @classmethod
     def load_best_checkpoint(cls, path_checkpoint_dir, **kwargs):
         path_best_checkpoint = cls._get_best_checkpoint_path(path_checkpoint_dir)
@@ -163,7 +168,9 @@ class BaseModel(pl.LightningModule):
         return self
 
     def get_model_config(self) -> Dict[str, Any]:
-        num_params_trainable = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        num_params_trainable = sum(
+            p.numel() for p in self.parameters() if p.requires_grad
+        )
         num_params_total = sum(p.numel() for p in self.parameters())
 
         config: Dict[str, Any] = {
@@ -181,7 +188,9 @@ class BaseModel(pl.LightningModule):
                 "kwargs": _to_jsonable(self.optimizer_kwargs),
             },
             "lr_scheduler": None,
-            "hparams": _to_jsonable(dict(self.hparams)) if hasattr(self, "hparams") else {},
+            "hparams": _to_jsonable(dict(self.hparams))
+            if hasattr(self, "hparams")
+            else {},
         }
 
         if self.lr_scheduler_class is not None:
@@ -202,14 +211,20 @@ class BaseModel(pl.LightningModule):
         if self.logger is not None:
             as_text = json.dumps(config, indent=2)
             try:
-                self.logger.experiment.add_text("model/config", f"<pre>{as_text}</pre>", global_step=0)
+                self.logger.experiment.add_text(
+                    "model/config", f"<pre>{as_text}</pre>", global_step=0
+                )
             except Exception:
                 self.print(as_text)
         log_dir: Optional[str] = None
         try:
             if hasattr(self.trainer, "log_dir") and self.trainer.log_dir:
                 log_dir = self.trainer.log_dir
-            elif self.logger is not None and hasattr(self.logger, "save_dir") and self.logger.save_dir:
+            elif (
+                self.logger is not None
+                and hasattr(self.logger, "save_dir")
+                and self.logger.save_dir
+            ):
                 log_dir = self.logger.save_dir
         except Exception:
             log_dir = None
@@ -231,8 +246,14 @@ class BasicClassifier(BaseModel):
         loss: Optional[Union[type, Callable[..., nn.Module]]] = None,
         loss_kwargs: Optional[Dict[str, Any]] = None,
         optimizer: Union[type, Callable[..., torch.optim.Optimizer]] = torch.optim.SGD,
-        optimizer_kwargs: Dict[str, Any] = {'lr': 8e-4, 'momentum': 0.9, 'weight_decay': 1e-2},
-        lr_scheduler: Optional[Union[type, Callable[..., torch.optim.lr_scheduler._LRScheduler]]] = torch.optim.lr_scheduler.StepLR,
+        optimizer_kwargs: Dict[str, Any] = {
+            "lr": 8e-4,
+            "momentum": 0.9,
+            "weight_decay": 1e-2,
+        },
+        lr_scheduler: Optional[
+            Union[type, Callable[..., torch.optim.lr_scheduler._LRScheduler]]
+        ] = torch.optim.lr_scheduler.StepLR,
         lr_scheduler_kwargs: Dict[str, Any] = {"step_size": 15, "gamma": 0.2},
         f1_kwargs: Optional[Dict[str, Any]] = None,
         acc_kwargs: Optional[Dict[str, Any]] = None,
@@ -247,10 +268,17 @@ class BasicClassifier(BaseModel):
         self.task = "binary" if self.is_binary else "multiclass"
 
         # Choose sensible default losses if not provided
-        loss = loss if loss is not None else (nn.BCEWithLogitsLoss if self.is_binary else nn.CrossEntropyLoss)
-        #loss_kwargs = {"pos_weight": torch.tensor([0.4 / 0.6]) }  if self.is_binary else {"weight": torch.tensor([2.0, 2.5, 1.67], dtype=torch.float)}
-        loss_kwargs = {"pos_weight": torch.tensor([0.4 / 0.6]) }  if self.is_binary else {"weight": torch.tensor([0.6, 0.4], dtype=torch.float)}
-
+        loss = (
+            loss
+            if loss is not None
+            else (nn.BCEWithLogitsLoss if self.is_binary else nn.CrossEntropyLoss)
+        )
+        # loss_kwargs = {"pos_weight": torch.tensor([0.4 / 0.6]) }  if self.is_binary else {"weight": torch.tensor([2.0, 2.5, 1.67], dtype=torch.float)}
+        loss_kwargs = (
+            {"pos_weight": torch.tensor([0.4 / 0.6])}
+            if self.is_binary
+            else {"weight": torch.tensor([0.6, 0.4], dtype=torch.float)}
+        )
 
         super().__init__(
             optimizer=optimizer,
@@ -267,17 +295,33 @@ class BasicClassifier(BaseModel):
         self.acc_kwargs = dict(acc_kwargs or {})
         if self.is_binary:
             # torchmetrics will threshold probabilities at 0.5
-            self.f1 = nn.ModuleDict({state: F1Score(task="binary", **self.f1_kwargs) for state in ["train_", "val_"]})
-            self.acc = nn.ModuleDict({state: Accuracy(task="binary", **self.acc_kwargs) for state in ["train_", "val_"]})
+            self.f1 = nn.ModuleDict(
+                {
+                    state: F1Score(task="binary", **self.f1_kwargs)
+                    for state in ["train_", "val_"]
+                }
+            )
+            self.acc = nn.ModuleDict(
+                {
+                    state: Accuracy(task="binary", **self.acc_kwargs)
+                    for state in ["train_", "val_"]
+                }
+            )
         else:
             self.f1_kwargs.update({"num_classes": out_ch})
             self.acc_kwargs.update({"num_classes": out_ch})
-            self.f1 = nn.ModuleDict({state: F1Score(task="multiclass", **self.f1_kwargs) for state in ["train_", "val_"]})
-            self.acc = nn.ModuleDict({state: Accuracy(task="multiclass", **self.acc_kwargs) for state in ["train_", "val_"]})
-        
-        
-            
-       
+            self.f1 = nn.ModuleDict(
+                {
+                    state: F1Score(task="multiclass", **self.f1_kwargs)
+                    for state in ["train_", "val_"]
+                }
+            )
+            self.acc = nn.ModuleDict(
+                {
+                    state: Accuracy(task="multiclass", **self.acc_kwargs)
+                    for state in ["train_", "val_"]
+                }
+            )
 
     def compute_loss(self, pred, target):
         return self.loss_func(pred, target)
@@ -315,7 +359,10 @@ class BasicClassifier(BaseModel):
         return loss_val
 
     def _epoch_end(self, state: str):
-        for name, metric in [("ACC", self.acc[state + "_"]), ("F1Score", self.f1[state + "_"])]:
+        for name, metric in [
+            ("ACC", self.acc[state + "_"]),
+            ("F1Score", self.f1[state + "_"]),
+        ]:
             self.log(
                 f"{state}/{name}",
                 metric.compute(),
@@ -326,7 +373,6 @@ class BasicClassifier(BaseModel):
             )
             metric.reset()
 
-
     def on_fit_start(self) -> None:
         super().on_fit_start()
         if self.logger is not None:
@@ -336,4 +382,3 @@ class BasicClassifier(BaseModel):
             for k, v in self.acc_kwargs.items():
                 extra_hparams[f"acc_{k}"] = str(v)
             self.logger.log_hyperparams(extra_hparams)
-

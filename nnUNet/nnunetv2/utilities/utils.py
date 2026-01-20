@@ -13,8 +13,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 import os.path
-from functools import lru_cache
-from typing import Union
 
 from batchgenerators.utilities.file_and_folder_operations import *
 import numpy as np

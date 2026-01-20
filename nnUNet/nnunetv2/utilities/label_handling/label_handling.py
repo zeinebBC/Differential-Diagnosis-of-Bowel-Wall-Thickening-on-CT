@@ -4,7 +4,7 @@ from typing import Union, List, Tuple, Type
 
 import numpy as np
 import torch
-from acvl_utils.cropping_and_padding.bounding_boxes import bounding_box_to_slice, insert_crop_into_image
+from acvl_utils.cropping_and_padding.bounding_boxes import insert_crop_into_image
 from batchgenerators.utilities.file_and_folder_operations import join
 
 import nnunetv2
@@ -49,7 +49,7 @@ class LabelManager(object):
             self.inference_nonlin = inference_nonlin
 
     def _sanity_check(self, label_dict: dict):
-        if not 'background' in label_dict.keys():
+        if 'background' not in label_dict.keys():
             raise RuntimeError('Background label not declared (remember that this should be label 0!)')
         bg_label = label_dict['background']
         if isinstance(bg_label, (tuple, list)):

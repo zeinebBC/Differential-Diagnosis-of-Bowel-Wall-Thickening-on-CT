@@ -3,7 +3,6 @@ import argparse
 import itertools
 import multiprocessing
 import numpy as np
-import os
 from os.path import join
 from pathlib import Path
 from time import time

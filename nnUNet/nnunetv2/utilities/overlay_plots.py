@@ -12,7 +12,6 @@
 #    See the License for the specific language governing permissions and
 #    limitations under the License.
 import multiprocessing
-from multiprocessing.pool import Pool
 from typing import Tuple, Union
 
 import numpy as np
@@ -25,8 +24,7 @@ from nnunetv2.paths import nnUNet_raw, nnUNet_preprocessed
 from nnunetv2.training.dataloading.nnunet_dataset import infer_dataset_class, nnUNetBaseDataset
 from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager
-from nnunetv2.utilities.utils import get_identifiers_from_splitted_dataset_folder, \
-    get_filenames_of_train_images_and_targets
+from nnunetv2.utilities.utils import get_filenames_of_train_images_and_targets
 
 color_cycle = (
     "000000",

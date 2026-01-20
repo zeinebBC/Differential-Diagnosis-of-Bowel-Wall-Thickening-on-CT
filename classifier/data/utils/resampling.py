@@ -1,35 +1,35 @@
-
 from pathlib import Path
 from tqdm import tqdm
 import numpy as np
 import pandas as pd
 import SimpleITK as sitk
-import shutil 
+import shutil
 
-def resample_image(image, target_spacing, is_label=False, interpolator='cubic'):
+
+def resample_image(image, target_spacing, is_label=False, interpolator="cubic"):
     """Resample a SimpleITK image to the target spacing."""
     orig_spacing = image.GetSpacing()
     orig_size = image.GetSize()
-    
+
     new_size = [
         int(round(orig_size[i] * (orig_spacing[i] / target_spacing[i])))
         for i in range(3)
     ]
-    
+
     resampler = sitk.ResampleImageFilter()
     resampler.SetOutputSpacing(target_spacing)
     resampler.SetSize(new_size)
     resampler.SetOutputOrigin(image.GetOrigin())
     resampler.SetOutputDirection(image.GetDirection())
-    
+
     if is_label:
         resampler.SetInterpolator(sitk.sitkNearestNeighbor)
     else:
-        if interpolator == 'linear':
+        if interpolator == "linear":
             resampler.SetInterpolator(sitk.sitkLinear)
-        elif interpolator == 'cubic':
+        elif interpolator == "cubic":
             resampler.SetInterpolator(sitk.sitkBSpline)
-    
+
     return resampler.Execute(image)
 
 
@@ -37,12 +37,11 @@ def batch_resample_and_save(
     root_dir: str,
     output_dir: str,
     target_spacing: tuple = (0.7, 0.7, 0.8),
-    split:str ="Tr",
-
+    split: str = "Tr",
 ):
     """
     Batch resample images (and optionally labels) to a target spacing and save results + metadata.
-    
+
     Args:
         images_dir (str): directory containing input NIfTI images (*.nii or *.nii.gz)
         output_dir (str): base directory to save resampled outputs
@@ -50,11 +49,11 @@ def batch_resample_and_save(
         labels_dir (str, optional): directory with label files (if provided)
     """
     images_dir = Path(root_dir) / "images_cropped"
-    labels_dir = Path(root_dir) / "labels_cropped" 
+    labels_dir = Path(root_dir) / "labels_cropped"
     resampled_images_dir = Path(output_dir) / "images_resampled"
-    
+
     resampled_images_dir.mkdir(parents=True, exist_ok=True)
-    if  labels_dir.exists():
+    if labels_dir.exists():
         resampled_labels_dir = Path(output_dir) / "labels_resampled"
         resampled_labels_dir.mkdir(parents=True, exist_ok=True)
 
@@ -63,13 +62,14 @@ def batch_resample_and_save(
     shapes_resampled = []
     spacings_orig = []
 
-    image_files = sorted(list(images_dir.glob("*.nii")) + list(images_dir.glob("*.nii.gz")))
+    image_files = sorted(
+        list(images_dir.glob("*.nii")) + list(images_dir.glob("*.nii.gz"))
+    )
     print(f"Found {len(image_files)} images in {images_dir}")
 
     for img_path in tqdm(image_files, desc="Resampling dataset"):
         uid = int(img_path.stem.replace("_0000.nii", "").replace(".nii", ""))
         out_img_path = resampled_images_dir / f"{uid}.nii.gz"
-       
 
         if out_img_path.exists():
             print(f"Skipping {uid}, already resampled.")
@@ -77,7 +77,7 @@ def batch_resample_and_save(
 
         # Load image
         image = sitk.ReadImage(str(img_path))
-        
+
         orig_spacing = image.GetSpacing()
         orig_size = image.GetSize()
 
@@ -86,7 +86,7 @@ def batch_resample_and_save(
         spacings_orig.append(orig_spacing)
         # --- Resample image
         res_image = resample_image(image, target_spacing=target_spacing)
-        
+
         shapes_resampled.append(res_image.GetSize())
 
         # --- Save resampled image
@@ -98,21 +98,25 @@ def batch_resample_and_save(
             out_label_path = resampled_labels_dir / f"{uid}_seg.nii.gz"
             if label_path.exists():
                 label = sitk.ReadImage(str(label_path))
-                res_label = resample_image(label, target_spacing=target_spacing, is_label=True)
+                res_label = resample_image(
+                    label, target_spacing=target_spacing, is_label=True
+                )
                 sitk.WriteImage(res_label, str(out_label_path))
             else:
                 print(f"Warning: label not found for {uid}, skipping label resampling.")
 
         # Record metadata
-        records.append({
-            "UID": uid,
-            "orig_size": orig_size,
-            "orig_spacing": orig_spacing,
-            "resampled_size": res_image.GetSize(),
-            "resampled_spacing": target_spacing,
-            "img_path": str(out_img_path),
-            "label_path": str(out_label_path) if labels_dir else None
-        })
+        records.append(
+            {
+                "UID": uid,
+                "orig_size": orig_size,
+                "orig_spacing": orig_spacing,
+                "resampled_size": res_image.GetSize(),
+                "resampled_spacing": target_spacing,
+                "img_path": str(out_img_path),
+                "label_path": str(out_label_path) if labels_dir else None,
+            }
+        )
 
     # --- Save metadata per image
     df = pd.DataFrame(records)
@@ -133,7 +137,7 @@ def batch_resample_and_save(
             "mean_total_voxels": float(total_voxels.mean()),
             "median_total_voxels": float(np.median(total_voxels)),
             "min_total_voxels": float(total_voxels.min()),
-            "max_total_voxels": float(total_voxels.max())
+            "max_total_voxels": float(total_voxels.max()),
         }
         return stats
 
@@ -144,16 +148,14 @@ def batch_resample_and_save(
     stats = {
         "original_shapes": compute_shape_stats(shapes_orig_arr),
         "resampled_shapes": compute_shape_stats(shapes_resampled_arr),
-        "original_spacings": compute_shape_stats(spacings_orig_arr)
+        "original_spacings": compute_shape_stats(spacings_orig_arr),
     }
 
     stats_path = output_dir.parent / f"shape_statistics_{split}.json"
     pd.DataFrame(stats).to_json(stats_path, indent=4)
     print(f"\nSaved dataset-level shape statistics → {stats_path}")
 
- 
-    print(f" Removing temporary cropping folders:")
+    print(" Removing temporary cropping folders:")
     shutil.rmtree(images_dir.parent, ignore_errors=True)
-    
 
     return stats

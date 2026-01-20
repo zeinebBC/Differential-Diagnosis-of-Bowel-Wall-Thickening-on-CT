@@ -27,7 +27,7 @@ from pathlib import Path
 
 import nnunetv2
 from nnunetv2.paths import nnUNet_preprocessed, nnUNet_raw
-from nnunetv2.preprocessing.cropping.cropping import crop_to_nonzero,crop_to_colon, crop_to_label
+from nnunetv2.preprocessing.cropping.cropping import crop_to_colon, crop_to_label
 from nnunetv2.preprocessing.resampling.default_resampling import compute_new_shape
 from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDatasetBlosc2
 from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
@@ -69,7 +69,7 @@ class DefaultPreprocessor(object):
 
 
         spacing = properties['spacing']
-        if not seg is None:
+        if seg is not None:
             if data.shape[0]>1:
                 seg[data[0:1,...] < -75] = 0
             else:

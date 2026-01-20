@@ -2,14 +2,11 @@ import numpy as np
 from scipy.ndimage import binary_fill_holes
 from acvl_utils.cropping_and_padding.bounding_boxes import get_bbox_from_mask, bounding_box_to_slice
 import os
-import numpy as np
 import sys
 
 from pathlib import Path
 from typing import  Tuple, Sequence
-from scipy.ndimage import binary_fill_holes
 
-import nibabel as nib
 import SimpleITK as sitk
 
 def create_nonzero_mask(data):
@@ -147,7 +144,7 @@ def crop_to_colon(data, seg, case_id, spacing, margin_min=20, margin_step=1):
     try:
         masks_root = os.environ["auto_seg_path"]
     except KeyError:
-        print(f"Error: Environment variable auto_seg_path is not set.", file=sys.stderr)
+        print("Error: Environment variable auto_seg_path is not set.", file=sys.stderr)
         sys.exit(1)
 
    

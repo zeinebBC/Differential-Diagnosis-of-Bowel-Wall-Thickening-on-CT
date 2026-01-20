@@ -7,6 +7,7 @@ import torch
 import blosc2
 from pathlib import Path
 
+
 def pad_to_shape(vol, target_shape, constant_values=0):
     pad_width = []
     current_shape = vol.shape[-3:]
@@ -21,8 +22,11 @@ def pad_to_shape(vol, target_shape, constant_values=0):
     else:
         leading_dims = len(vol.shape) - 3
         pad_width_full = [(0, 0)] * leading_dims + pad_width
-        return np.pad(vol, pad_width_full, mode="constant", constant_values=constant_values)
-    
+        return np.pad(
+            vol, pad_width_full, mode="constant", constant_values=constant_values
+        )
+
+
 def pad_batch_with_channel(vol, target_shape, constant_values=0):
     padded_vols = []
     for vol in vol:
@@ -30,11 +34,12 @@ def pad_batch_with_channel(vol, target_shape, constant_values=0):
         padded_vols.append(padded_vol)
     return torch.stack(padded_vols)
 
+
 def load_b2nd(path):
-   
     schunk = blosc2.open(path, mode="r")
-    arr = schunk[:][0]  
+    arr = schunk[:][0]
     return arr
+
 
 def load_volume(path):
     path = Path(path)
@@ -50,9 +55,6 @@ def load_volume(path):
         return load_b2nd(path)
     else:
         raise ValueError(f"Unsupported format: {path.suffix}")
-    
-   
-            
 
 
 def transform_image_and_label(image, label):
@@ -73,10 +75,3 @@ def transform_image_and_label(image, label):
         label = fT.rotate(label, angle, interpolation=F.InterpolationMode.NEAREST)
 
     return image, label
-
-
-
-
-
-
-

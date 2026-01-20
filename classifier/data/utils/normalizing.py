@@ -3,8 +3,9 @@ import pandas as pd
 import nibabel as nib
 from pathlib import Path
 from glob import glob
-from tqdm import tqdm 
-import shutil 
+from tqdm import tqdm
+import shutil
+
 
 def window_and_normalize(image: np.ndarray, window_min=-100, window_max=500):
     """
@@ -20,8 +21,7 @@ def process_and_window_dataset(
     output_dir: str,
     window_min: float = -100,
     window_max: float = 500,
-    split:str ="Tr",
-
+    split: str = "Tr",
 ):
     """
     Apply windowing and normalization to a folder of CT NIfTI images,
@@ -32,7 +32,7 @@ def process_and_window_dataset(
         output_dir (str): Folder to save processed .npz files.
         window_min (float): Minimum Hounsfield value for windowing.
         window_max (float): Maximum Hounsfield value for windowing.
-     
+
     """
     images_dir = Path(images_dir)
     output_dir = Path(output_dir)
@@ -58,7 +58,7 @@ def process_and_window_dataset(
 
         # Apply windowing + normalization
         img_proc = window_and_normalize(img_np, window_min, window_max)
-        
+
         # Save compressed image
         np.savez_compressed(save_path, image=img_proc)
 
@@ -89,7 +89,6 @@ def process_and_window_dataset(
     print(f"Saved intensity statistics CSV to {stats_csv_path}")
     print(f"Global stats: {dataset_stats}")
 
-    
-    print(f"Removing temporary resampling folder")
+    print("Removing temporary resampling folder")
     shutil.rmtree(images_dir, ignore_errors=True)
     return dataset_stats

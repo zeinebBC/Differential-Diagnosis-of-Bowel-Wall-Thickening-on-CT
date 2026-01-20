@@ -11,7 +11,7 @@ from pathlib import Path
 from nnunetv2.imageio.base_reader_writer import BaseReaderWriter
 from nnunetv2.imageio.reader_writer_registry import determine_reader_writer_from_dataset_json
 from nnunetv2.paths import nnUNet_raw, nnUNet_preprocessed
-from nnunetv2.preprocessing.cropping.cropping import crop_to_nonzero, crop_to_colon, crop_to_label
+from nnunetv2.preprocessing.cropping.cropping import crop_to_colon, crop_to_label
 from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
 from nnunetv2.utilities.utils import get_filenames_of_train_images_and_targets
 

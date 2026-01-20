@@ -1,14 +1,19 @@
-from pathlib import Path
+import json
+import os
 from datetime import datetime
+from pathlib import Path
+from types import SimpleNamespace
+
 import torch
 from pytorch_lightning import Trainer
-from pytorch_lightning.callbacks import ModelCheckpoint, LearningRateMonitor, EarlyStopping
+from pytorch_lightning.callbacks import (
+    EarlyStopping,
+    LearningRateMonitor,
+    ModelCheckpoint,
+)
 from pytorch_lightning.loggers import MLFlowLogger
-import json
-from types import SimpleNamespace
-import os
 
-from classifier.data import basedataset, DataModuleCC, ColonCancer_center, ColonCancer_monai
+from classifier.data import DataModuleCC, basedataset
 from classifier.models import ResNet
 
 
@@ -22,7 +27,9 @@ def get_model(cfg):
             out_ch=cfg.model.out_ch,
             optimizer=getattr(torch.optim, cfg.optimizer.type.split(".")[-1]),
             optimizer_kwargs=cfg.optimizer.kwargs,
-            lr_scheduler=getattr(torch.optim.lr_scheduler, cfg.lr_scheduler.type.split(".")[-1]),
+            lr_scheduler=getattr(
+                torch.optim.lr_scheduler, cfg.lr_scheduler.type.split(".")[-1]
+            ),
             lr_scheduler_kwargs=cfg.lr_scheduler.kwargs,
             model=cfg.model.resnet_model,
             pretrained=cfg.model.pretrained,
@@ -30,6 +37,7 @@ def get_model(cfg):
         )
     else:
         raise ValueError(f"Unknown model: {cfg.model.type}")
+
 
 # ------------------------------------------
 # Main
@@ -48,9 +56,13 @@ def main():
     # -------------------- Paths --------------------
     path_root = Path(os.environ.get("root_path", "."))
     current_time = datetime.now().strftime("%Y_%m_%d_%H%M%S")
-    path_run_dir = path_root / cfg.training.output_dir / f"logs/{cfg.model.type}_{cfg.training.dataset}_{current_time}"
+    path_run_dir = (
+        path_root
+        / cfg.training.output_dir
+        / f"logs/{cfg.model.type}_{cfg.training.dataset}_{current_time}"
+    )
     path_run_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Save config to run folder
     (path_run_dir / "config.json").write_text(json.dumps(cfg_dict, indent=4))
 
@@ -93,7 +105,7 @@ def main():
         pin_memory=True,
         shuffle=True,  #########
         num_workers=cfg.training.num_workers,
-        persistent_workers=True,   ##########
+        persistent_workers=True,  ##########
     )
 
     # -------------------- Model --------------------
@@ -123,15 +135,9 @@ def main():
 
     callbacks = [
         LearningRateMonitor(logging_interval="step"),
-        EarlyStopping(
-            monitor=monitor_metric,
-            min_delta=0.0,
-            patience=50,
-            mode=mode
-        ),
+        EarlyStopping(monitor=monitor_metric, min_delta=0.0, patience=50, mode=mode),
         checkpoint_cb,
     ]
-
 
     # -------------------- Trainer --------------------
     trainer = Trainer(

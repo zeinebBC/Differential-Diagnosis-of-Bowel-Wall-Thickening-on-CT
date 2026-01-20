@@ -59,7 +59,7 @@ class nnUNetPredictor(object):
         if device.type == 'cuda':
             torch.backends.cudnn.benchmark = True
         else:
-            print(f'perform_everything_on_device=True is only supported for cuda devices! Setting this to False')
+            print('perform_everything_on_device=True is only supported for cuda devices! Setting this to False')
             perform_everything_on_device = False
         self.device = device
         self.perform_everything_on_device = perform_everything_on_device
