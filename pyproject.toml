@@ -63,8 +63,9 @@ dependencies = [
     "TotalSegmentator"
 ]
 
-[tool.setuptools]
-packages = ["classifier", "segmentator.nnunetv2_custom"]
+[tool.setuptools.packages.find]
+where = ["."]
+
 [project.urls]
 homepage = "https://github.com/zeinebBC/ColonCancerDetection"
 repository = "https://github.com/zeinebBC/ColonCancerDetection"
