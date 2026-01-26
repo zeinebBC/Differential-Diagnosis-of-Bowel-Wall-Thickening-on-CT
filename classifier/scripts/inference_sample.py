@@ -2,7 +2,7 @@ from pathlib import Path
 import torch
 import torchio as tio
 from collections import Counter
-from classifier.models import ResNet
+from ColonCancerDetection.classifier.models import ResNet
 from classifier.data.utils.functions_utils import pad_batch_with_channel
 import json
 from classifier.data.utils.cropping import crop_to_label_region
