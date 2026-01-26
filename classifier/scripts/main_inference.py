@@ -58,7 +58,7 @@ def main():
     cfg.model = SimpleNamespace(**cfg.model)
 
     # Paths
-    path_root = Path(os.environ.get("root_path"))
+    path_root = Path(os.environ.get("root"))
     chkpt_folder = Path(cfg.testing.chkpt_folder)
     path_out = (
         path_root / cfg.testing.output_dir / chkpt_folder.name / cfg.testing.dataset

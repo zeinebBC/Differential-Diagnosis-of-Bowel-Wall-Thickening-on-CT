@@ -127,7 +127,7 @@ def batch_crop_and_save(
             continue
 
         label_path = labels_dir / f"{uid}.nii.gz"
-        colon_label_path = Path(os.environ.get("auto_seg_path")) / Path(f"{uid}.nii.gz")
+        colon_label_path = Path(os.environ.get("auto_seg")) / Path(f"{uid}.nii.gz")
 
         if not label_path.exists():
             print(f"Label not found for {uid}, skipping.")

@@ -1,7 +1,7 @@
 {
     "model": {
         "type": "ResNet",
-        "in_ch": 1,
+        "in_ch": 2,
         "out_ch": 2,
         "spatial_dims": 3,
         "resnet_model": 18,
@@ -31,7 +31,7 @@
         }
     },
     "training": {
-        "dataset": "Dataset107_CC",
+        "dataset": "Dataset_CC_reduced",
         "resample_spacing": [
             1.0,
             1.0,
@@ -47,7 +47,6 @@
         "output_dir": "Resnet_results",
         "use_labels": true,
         "pp_nnunet_data": null,
-        "use_gt": false,
         "num_patches_per_epoch_train":2500, 
         "num_patches_per_epoch_val": 250,    
         "batch_size": 8,
@@ -63,7 +62,7 @@
         "acc_kwargs": null
     },
     "testing": {
-        "dataset": "Dataset100_CC",
+        "dataset": "Dataset_CC_reduced",
         "chkpt_folder": "/data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_06_085145",
         "output_dir": "Resnet_results/inf_outputs",
         "_comment": " /data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_05_150300 /data/benchaaben/ColonCancerDetection/classifier/resampledTs/labels_resampled   ResNet_ColonCancer_2025_10_29_102920   ResNet_ColonCancer_2025_10_21_174228 /data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_26_140955 /data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset107_CC_2025_12_21_194622",

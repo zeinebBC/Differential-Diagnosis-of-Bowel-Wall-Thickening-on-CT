@@ -1,9 +1,7 @@
 # ============================== Imports ==============================
 
-import json
-import os
 from pathlib import Path
-
+import os
 import numpy as np
 import pandas as pd
 import torch
@@ -17,62 +15,6 @@ from classifier.data.utils.resampling import batch_resample_and_save
 
 
 # ============================== Helpers ==============================
-def generate_target_mapping_method(self):
-    DIV_CASES = Path(
-        os.environ.get(
-            "CC_DIV_CASES", "/data/colon_cancer/Classifier/filename_mapping.json"
-        )
-    )
-    if not DIV_CASES.exists():
-        raise FileNotFoundError(f"Mapping file {DIV_CASES} not found.")
-
-    with open(DIV_CASES) as f:
-        known_uids = json.load(f)
-    known_uids_set = set(known_uids.keys())
-
-    # Load existing labels if any
-    existing_df = (
-        pd.read_csv(self.labels_file) if self.labels_file.exists() else pd.DataFrame()
-    )
-    existing_uids = (
-        set(existing_df["UID"].astype(str)) if not existing_df.empty else set()
-    )
-
-    mapping = []
-    num_div, num_cancer = 0, 0
-
-    # Loop over both train and test folders
-    for split in ["Tr", "Ts"]:
-        images_folder = self.path_root / f"raw_data/{self.dataset_name}/images{split}"
-        images = list(images_folder.glob("*.nii*"))
-
-        for img_path in images:
-            uid = img_path.stem.replace("_0000.nii", "")
-            if uid in existing_uids:
-                continue
-
-            target = 0 if uid in known_uids_set else 1
-            num_div += target == 0
-            num_cancer += target == 1
-
-            mapping.append({"UID": uid, "img_path": img_path, "target": target})
-
-    columns_order = ["UID", "img_path", "target"]
-    new_df = (
-        pd.DataFrame(mapping)[columns_order]
-        if mapping
-        else pd.DataFrame(columns=columns_order)
-    )
-    final_df = (
-        pd.concat([existing_df, new_df], ignore_index=True)
-        if not existing_df.empty
-        else new_df
-    )
-    final_df.to_csv(self.labels_file, index=False)
-
-    print(f"Saved classification labels for {len(final_df)} images")
-    print(f"Diverticulitis: {num_div}, Colon cancer: {num_cancer}")
-
 
 def find_existing_file(base_dir, uid, candidates):
     for pattern in candidates:
@@ -130,7 +72,7 @@ class basedataset(data.Dataset):
         pp_nnunet_data=None,
         **preprocess_kwargs,
     ):
-        self.path_root = Path("/data/colon_cancer/CC_Detection")
+        self.path_root = Path(os.environ["root"])
         self.dataset_name = dataset_name
         self.pp_nnunet_data = pp_nnunet_data
         self.split = split
@@ -310,11 +252,33 @@ class basedataset(data.Dataset):
     # ---------------- Split & Preprocessing ----------------
 
     def create_splits(self, val_fraction=0.1, seed=42):
+        if self.labels_file is None or not Path(self.labels_file).exists():
+            raise FileNotFoundError(
+                f"Labels file {self.labels_file} not found. Cannot create splits."
+            )
         df = pd.read_csv(self.labels_file)
         df["Split"] = None
 
-        test_mask = df["img_path"].str.contains("imagesTs")
-        df.loc[test_mask, "Split"] = "test"
+        test_path = self.path_root / "raw_data" / self.dataset_name / "imagesTs"
+
+        test_uids = set()
+        if test_path.exists():
+            nii_files = list(test_path.glob("*.nii.gz"))
+            if len(nii_files) > 0:
+                test_uids = {
+                    p.name.replace(".nii.gz", "").rsplit("_", 1)[0]
+                    for p in nii_files
+                }
+
+ 
+        if test_uids:
+            test_mask = df["uid"].isin(test_uids)
+            df.loc[test_mask, "Split"] = "test"
+        else:
+            print(
+                "No test set found. Creating train/val split only. "
+                "You may need to add test split IDs later for inference."
+            )
 
         trainval = df[~test_mask]
         train_idx, val_idx = train_test_split(
@@ -335,7 +299,7 @@ class basedataset(data.Dataset):
         overwrite_window=True,
         resample_spacing=(1, 1, 1),
         path_data=None,
-        use_gt=True,
+       
     ):
         if path_data is None:
             path_data = self.path_root / "raw_data" / self.dataset_name

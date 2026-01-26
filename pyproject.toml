@@ -59,11 +59,12 @@ dependencies = [
     "seaborn",
     "imagecodecs",
     "yacs",
-    "einops"
+    "einops",
+    "TotalSegmentator"
 ]
 
 [tool.setuptools]
-packages = ["classifier", "nnUNet.nnunetv2", "nnunetv2"]
+packages = ["classifier", "segmentator.nnunetv2_custom"]
 [project.urls]
 homepage = "https://github.com/zeinebBC/ColonCancerDetection"
 repository = "https://github.com/zeinebBC/ColonCancerDetection"
@@ -71,27 +72,27 @@ repository = "https://github.com/zeinebBC/ColonCancerDetection"
 [project.scripts]
 train_resnet = "classifier.scripts.main_train:main"
 predict_resnet = "classifier.scripts.main_inference:main"
-nnUNetv2_plan_and_preprocess = "nnunetv2.experiment_planning.plan_and_preprocess_entrypoints:plan_and_preprocess_entry"
-nnUNetv2_extract_fingerprint = "nnunetv2.experiment_planning.plan_and_preprocess_entrypoints:extract_fingerprint_entry"
-nnUNetv2_plan_experiment = "nnunetv2.experiment_planning.plan_and_preprocess_entrypoints:plan_experiment_entry"
-nnUNetv2_preprocess = "nnunetv2.experiment_planning.plan_and_preprocess_entrypoints:preprocess_entry"
-nnUNetv2_train = "nnunetv2.run.run_training:run_training_entry"
-nnUNetv2_predict_from_modelfolder = "nnunetv2.inference.predict_from_raw_data:predict_entry_point_modelfolder"
-nnUNetv2_predict = "nnunetv2.inference.predict_from_raw_data:predict_entry_point"
-nnUNetv2_convert_old_nnUNet_dataset = "nnunetv2.dataset_conversion.convert_raw_dataset_from_old_nnunet_format:convert_entry_point"
-nnUNetv2_find_best_configuration = "nnunetv2.evaluation.find_best_configuration:find_best_configuration_entry_point"
-nnUNetv2_determine_postprocessing = "nnunetv2.postprocessing.remove_connected_components:entry_point_determine_postprocessing_folder"
-nnUNetv2_apply_postprocessing = "nnunetv2.postprocessing.remove_connected_components:entry_point_apply_postprocessing"
-nnUNetv2_ensemble = "nnunetv2.ensembling.ensemble:entry_point_ensemble_folders"
-nnUNetv2_accumulate_crossval_results = "nnunetv2.evaluation.find_best_configuration:accumulate_crossval_results_entry_point"
-nnUNetv2_plot_overlay_pngs = "nnunetv2.utilities.overlay_plots:entry_point_generate_overlay"
-nnUNetv2_download_pretrained_model_by_url = "nnunetv2.model_sharing.entry_points:download_by_url"
-nnUNetv2_install_pretrained_model_from_zip = "nnunetv2.model_sharing.entry_points:install_from_zip_entry_point"
-nnUNetv2_export_model_to_zip = "nnunetv2.model_sharing.entry_points:export_pretrained_model_entry"
-nnUNetv2_move_plans_between_datasets = "nnunetv2.experiment_planning.plans_for_pretraining.move_plans_between_datasets:entry_point_move_plans_between_datasets"
-nnUNetv2_evaluate_folder = "nnunetv2.evaluation.evaluate_predictions:evaluate_folder_entry_point"
-nnUNetv2_evaluate_simple = "nnunetv2.evaluation.evaluate_predictions:evaluate_simple_entry_point"
-nnUNetv2_convert_MSD_dataset = "nnunetv2.dataset_conversion.convert_MSD_dataset:entry_point"
+nnUNetv2_plan_and_preprocess = "segmentator.nnunetv2_custom.experiment_planning.plan_and_preprocess_entrypoints:plan_and_preprocess_entry"
+nnUNetv2_extract_fingerprint = "segmentator.nnunetv2_custom.experiment_planning.plan_and_preprocess_entrypoints:extract_fingerprint_entry"
+nnUNetv2_plan_experiment = "segmentator.nnunetv2_custom.experiment_planning.plan_and_preprocess_entrypoints:plan_experiment_entry"
+nnUNetv2_preprocess = "segmentator.nnunetv2_custom.experiment_planning.plan_and_preprocess_entrypoints:preprocess_entry"
+nnUNetv2_train = "segmentator.nnunetv2_custom.run.run_training:run_training_entry"
+nnUNetv2_predict_from_modelfolder = "segmentator.nnunetv2_custom.inference.predict_from_raw_data:predict_entry_point_modelfolder"
+nnUNetv2_predict = "segmentator.nnunetv2_custom.inference.predict_from_raw_data:predict_entry_point"
+nnUNetv2_convert_old_nnUNet_dataset = "segmentator.nnunetv2_custom.dataset_conversion.convert_raw_dataset_from_old_nnunet_format:convert_entry_point"
+nnUNetv2_find_best_configuration = "segmentator.nnunetv2_custom.evaluation.find_best_configuration:find_best_configuration_entry_point"
+nnUNetv2_determine_postprocessing = "segmentator.nnunetv2_custom.postprocessing.remove_connected_components:entry_point_determine_postprocessing_folder"
+nnUNetv2_apply_postprocessing = "segmentator.nnunetv2_custom.postprocessing.remove_connected_components:entry_point_apply_postprocessing"
+nnUNetv2_ensemble = "segmentator.nnunetv2_custom.ensembling.ensemble:entry_point_ensemble_folders"
+nnUNetv2_accumulate_crossval_results = "segmentator.nnunetv2_custom.evaluation.find_best_configuration:accumulate_crossval_results_entry_point"
+nnUNetv2_plot_overlay_pngs = "segmentator.nnunetv2_custom.utilities.overlay_plots:entry_point_generate_overlay"
+nnUNetv2_download_pretrained_model_by_url = "segmentator.nnunetv2_custom.model_sharing.entry_points:download_by_url"
+nnUNetv2_install_pretrained_model_from_zip = "segmentator.nnunetv2_custom.model_sharing.entry_points:install_from_zip_entry_point"
+nnUNetv2_export_model_to_zip = "segmentator.nnunetv2_custom.model_sharing.entry_points:export_pretrained_model_entry"
+nnUNetv2_move_plans_between_datasets = "segmentator.nnunetv2_custom.experiment_planning.plans_for_pretraining.move_plans_between_datasets:entry_point_move_plans_between_datasets"
+nnUNetv2_evaluate_folder = "segmentator.nnunetv2_custom.evaluation.evaluate_predictions:evaluate_folder_entry_point"
+nnUNetv2_evaluate_simple = "segmentator.nnunetv2_custom.evaluation.evaluate_predictions:evaluate_simple_entry_point"
+nnUNetv2_convert_MSD_dataset = "segmentator.nnunetv2_custom.dataset_conversion.convert_MSD_dataset:entry_point"
 
 [project.optional-dependencies]
 dev = [
@@ -99,6 +100,9 @@ dev = [
     "ruff",
     "pre-commit"
 ]
+
+[tool.ruff]
+ignore = ["E501"]
 
 [build-system]
 requires = ["setuptools>=67.8.0"]

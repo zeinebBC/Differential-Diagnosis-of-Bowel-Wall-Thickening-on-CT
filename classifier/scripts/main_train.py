@@ -77,7 +77,6 @@ def main():
         transforms=cfg.training.transforms,
         use_labels=cfg.training.use_labels,
         pp_nnunet_data=cfg.training.pp_nnunet_data,
-        use_gt=cfg.training.use_gt,
         overwrite_cropping=cfg.training.overwrite_cropping,
         overwrite_resample=cfg.training.overwrite_resample,
         overwrite_window=cfg.training.overwrite_window,
@@ -142,6 +141,8 @@ def main():
     # -------------------- Trainer --------------------
     trainer = Trainer(
         accelerator=accelerator,
+        devices=1,        
+        strategy="auto", 
         precision="16-mixed",
         default_root_dir=str(path_run_dir),
         callbacks=callbacks,
