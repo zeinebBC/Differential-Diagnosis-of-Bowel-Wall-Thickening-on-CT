@@ -171,6 +171,7 @@ def crop_to_colon(data, seg, case_id, spacing, margin_min=20, margin_step=1):
 
     
     if seg is None:
+    
         """
         # No segmentation: return original data and full bounding box in correct format
         bbox = [
@@ -184,6 +185,7 @@ def crop_to_colon(data, seg, case_id, spacing, margin_min=20, margin_step=1):
         bbox = get_bbox_from_mask_with_margin(mask_colon, margin_vox)
 
         data_cropped = crop_to_bbox(data, bbox)
+        print("data_cropped.shape:", data_cropped.shape, "data.shape",data.shape, flush=True)
         return data_cropped,seg, bbox
 
     
