@@ -403,19 +403,22 @@ if __name__ == "__main__":
     main()
 """
 
+###################################################### run before using refined labels ###########################################################################################
+
 import os
+import shutil
 from glob import glob
-import SimpleITK as sitk
+
 import numpy as np
-from scipy.ndimage import label as cc_label
+import SimpleITK as sitk
 from acvl_utils.morphology.morphology_helper import remove_all_but_largest_component
-from datetime import datetime
 
 # ===========================================================
 #   SLICE UTILITIES
 # ===========================================================
 
-def find_annotated_slices(label, axis="axial"):
+
+def find_annotated_slices(label, axis):
     """Return sorted indices of slices containing label > 0."""
     if axis == "axial":
         reduce_axes = (1, 2)
@@ -430,14 +433,66 @@ def find_annotated_slices(label, axis="axial"):
 
 
 # ===========================================================
-#   RESAMPLING (EXACTLY AS IN PIPELINE)
+#   GAP-AWARE INTERPOLATION
 # ===========================================================
 
-def resample_label_to_image(label_path, image_ref_path):
-    label_sitk = sitk.ReadImage(label_path)
-    ref_sitk = sitk.ReadImage(image_ref_path)
 
-    return sitk.Resample(
+def interpolate_gap(lbl, k0, k1):
+    """Interpolate slices strictly between k0 and k1."""
+    for k in range(k0 + 1, k1):
+        w = (k - k0) / float(k1 - k0)
+        lbl[k] = ((1 - w) * lbl[k0] + w * lbl[k1]) > 0
+    return lbl
+
+
+def interpolate_missing_slices(label, axis="axial", max_gap=5):
+    """
+    Interpolate ONLY small gaps (<= max_gap) between annotated slices.
+    """
+    lbl = label.copy()
+
+    if axis == "coronal":
+        lbl = np.transpose(lbl, (1, 0, 2))
+    elif axis == "sagittal":
+        lbl = np.transpose(lbl, (2, 1, 0))
+
+    annotated = find_annotated_slices(lbl, "axial")
+
+    if len(annotated) < 2:
+        print("  [interp] Not enough annotated slices, skipping interpolation")
+        return label
+
+    for i in range(len(annotated) - 1):
+        k0, k1 = annotated[i], annotated[i + 1]
+        gap = k1 - k0 - 1
+
+        if 1 <= gap <= max_gap:
+            print(f"  [interp] Interpolating gap of {gap} slices ({k0} → {k1})")
+            lbl = interpolate_gap(lbl, k0, k1)
+        elif gap > max_gap:
+            print(f"  [interp] Large gap ({gap} slices), NOT interpolating")
+
+    if axis == "coronal":
+        lbl = np.transpose(lbl, (1, 0, 2))
+    elif axis == "sagittal":
+        lbl = np.transpose(lbl, (2, 1, 0))
+
+    return lbl.astype(label.dtype)
+
+
+# ===========================================================
+#   RESAMPLING
+# ===========================================================
+
+
+def resample_label_to_image(label_path, image_ref_path):
+    print(f"  [resample] Label: {label_path}")
+    print(f"  [resample] Image ref: {image_ref_path}")
+
+    label_sitk = sitk.ReadImage(str(label_path))
+    ref_sitk = sitk.ReadImage(str(image_ref_path))
+
+    out = sitk.Resample(
         label_sitk,
         ref_sitk,
         sitk.Transform(),
@@ -445,6 +500,9 @@ def resample_label_to_image(label_path, image_ref_path):
         0,
         label_sitk.GetPixelID(),
     )
+
+    print("  [resample] Done")
+    return out
 
 
 # ===========================================================
@@ -454,146 +512,102 @@ def resample_label_to_image(label_path, image_ref_path):
 label_dir = "/data/colon_cancer/Task101_Colon/raw_splitted/imagesTr/labels/final"
 image_dir = "/data/colon_cancer/Task101_Colon/raw_splitted/imagesTr"
 
+out_image_dir = "/data/colon_cancer/CC_Detection/raw_data/Dataset109_CC/imagesTr"
+out_label_dir = "/data/colon_cancer/CC_Detection/raw_data/Dataset109_CC/labelsTr"
+
+os.makedirs(out_image_dir, exist_ok=True)
+os.makedirs(out_label_dir, exist_ok=True)
+
 label_files = sorted(glob(os.path.join(label_dir, "*.nii.gz")))
-
-log_dir = "./qc_logs"
-os.makedirs(log_dir, exist_ok=True)
-
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-log_path = os.path.join(log_dir, f"label_qc_report_{timestamp}.txt")
-
-MAX_GAP = 4
-
 print(f"Found {len(label_files)} label files")
-print(f"Logs will be saved to: {log_path}")
-
-# ===========================================================
-#   DATASET-LEVEL CONTAINERS
-# ===========================================================
-
-cases_multi_label = []
-cases_small_gaps = []
-cases_large_gaps = []
-cases_parts_removed = []
-
-# ===========================================================
-#   LOGGING UTILITY
-# ===========================================================
-
-def log(msg):
-    print(msg)
-    with open(log_path, "a") as f:
-        f.write(msg + "\n")
 
 
 # ===========================================================
-#   MAIN INSPECTION LOOP
+#   MAIN PIPELINE
 # ===========================================================
 
-with open(log_path, "w") as f:
-    f.write(f"Label QC Report (RESAMPLED) - {timestamp}\n")
-    f.write("=" * 60 + "\n\n")
+MAX_GAP = 2
 
 for label_path in label_files:
-    name = os.path.basename(label_path)
-    uid = name.split("_")[0]
-    image_path = os.path.join(image_dir, name)
+    label_name = os.path.basename(label_path)
+    uid = label_name.split("_")[0]
+    img_path = os.path.join(image_dir, label_name)
 
-    if not os.path.exists(image_path):
-        log(f"\n=== CASE {uid} ===")
-        log("❌ Missing corresponding image → skipped")
+    print("\n===================================================")
+    print(f"Processing case: {uid}")
+
+    if not os.path.exists(img_path):
+        print(f"⚠️  No matching image for {label_name}, skipping")
         continue
 
-    # -------------------------------------------------------
-    # RESAMPLE LABEL FIRST
-    # -------------------------------------------------------
-    label_resampled = resample_label_to_image(label_path, image_path)
-    label_np = sitk.GetArrayFromImage(label_resampled)
+    # --------------------------------------------------
+    # Copy image
+    # --------------------------------------------------
+    new_img_name = f"{uid}_0000.nii.gz"
+    out_img_path = os.path.join(out_image_dir, new_img_name)
 
-    log(f"\n=== CASE {uid} ===")
-    log(f"Label shape after resampling: {label_np.shape}")
+    shutil.copy2(img_path, out_img_path)
+    print(f"  [copy] Image copied → {out_img_path}")
 
-    # -------------------------------------------------------
-    # 1. UNIQUE LABEL VALUES
-    # -------------------------------------------------------
-    unique_vals = np.unique(label_np)
-    log(f"Unique label values: {unique_vals.tolist()}")
+    # --------------------------------------------------
+    # Load + resample label
+    # --------------------------------------------------
+    label_resampled = resample_label_to_image(label_path, img_path)
+    label_np = sitk.GetArrayFromImage(label_resampled).astype(np.uint8)
 
-    if len(unique_vals) > 2:
-        cases_multi_label.append(uid)
-        log("  ⚠ More than one foreground label present")
+    n_vox_before = np.count_nonzero(label_np)
+    label_np[label_np == 2] = 0
+    n_vox_after = np.count_nonzero(label_np)
 
-    # -------------------------------------------------------
-    # 2. GAP ANALYSIS (AXIAL)
-    # -------------------------------------------------------
-    annotated = find_annotated_slices(label_np, axis="axial")
-    log(f"Annotated axial slices: {annotated.tolist()}")
+    if n_vox_before != n_vox_after:
+        print(f"  [clean] Removed label=2 voxels: {n_vox_before} → {n_vox_after}")
 
-    has_small_gap = False
-    has_large_gap = False
+    # --------------------------------------------------
+    # Gap analysis BEFORE interpolation
+    # --------------------------------------------------
+    annotated = find_annotated_slices(label_np, "axial")
+    print(f"  [slices] Annotated slices: {annotated.tolist()}")
 
     for i in range(len(annotated) - 1):
         gap = annotated[i + 1] - annotated[i] - 1
         if gap > 0:
-            if gap <= MAX_GAP:
-                has_small_gap = True
-                log(f"  ⚠ Small gap ({gap} slices) between {annotated[i]} and {annotated[i+1]}")
-            else:
-                has_large_gap = True
-                log(f"  ❌ Large gap ({gap} slices) between {annotated[i]} and {annotated[i+1]}")
+            print(
+                f"  [gap] {gap} empty slices between {annotated[i]} and {annotated[i + 1]}"
+            )
 
-    if has_small_gap:
-        cases_small_gaps.append(uid)
+    # --------------------------------------------------
+    # Interpolation
+    # --------------------------------------------------
+    mask_interp = interpolate_missing_slices(
+        label_np,
+        axis="axial",
+        max_gap=MAX_GAP,
+    )
 
-    if has_large_gap:
-        cases_large_gaps.append(uid)
+    vox_interp = np.count_nonzero(mask_interp)
+    print(f"  [interp] Voxels after interpolation: {vox_interp}")
 
-    # -------------------------------------------------------
-    # 3. CONNECTED COMPONENTS (ACTUAL REMOVAL CHECK)
-    # -------------------------------------------------------
-    binary = (label_np > 0).astype(np.uint8)
+    # --------------------------------------------------
+    # Largest connected component
+    # --------------------------------------------------
+    mask_final = remove_all_but_largest_component(mask_interp).astype(np.uint8)
+    vox_final = np.count_nonzero(mask_final)
 
-    _, num_components = cc_label(binary)
-
-    largest_only = remove_all_but_largest_component(binary)
-
-    voxels_before = binary.sum()
-    voxels_after = largest_only.sum()
-    removed_voxels = voxels_before - voxels_after
-
-    log(f"Connected components (before): {num_components}")
-    log(f"Foreground voxels before: {voxels_before}")
-    log(f"Foreground voxels after : {voxels_after}")
-
-    if removed_voxels > 0:
-        cases_parts_removed.append(uid)
-        log(f"  ❌ remove_all_but_largest_component removed {removed_voxels} voxels")
+    if vox_final != vox_interp:
+        print(f"  [LCC] Voxels reduced: {vox_interp} → {vox_final}")
     else:
-        log("  ✓ No components removed")
+        print("  [LCC] No change after largest-component filtering")
 
-# ===========================================================
-#   FINAL SUMMARY
-# ===========================================================
+    # --------------------------------------------------
+    # Save label
+    # --------------------------------------------------
+    final_label_sitk = sitk.GetImageFromArray(mask_final)
+    final_label_sitk.CopyInformation(label_resampled)
 
-log("\n" + "=" * 60)
-log("FINAL SUMMARY (RESAMPLED LABELS)")
-log("=" * 60)
+    new_label_name = f"{uid}.nii.gz"
+    out_label_path = os.path.join(out_label_dir, new_label_name)
 
-log(f"Cases with >1 unique label value : {len(cases_multi_label)}")
-log(f"Cases with small gaps (≤ {MAX_GAP}) : {len(cases_small_gaps)}")
-log(f"Cases with large gaps (> {MAX_GAP}) : {len(cases_large_gaps)}")
-log(f"Cases where parts were removed    : {len(cases_parts_removed)}")
+    sitk.WriteImage(final_label_sitk, out_label_path)
+    print(f"  [save] Label written → {out_label_path}")
 
-log("\nIDs with multiple labels:")
-log(cases_multi_label)
-
-log("\nIDs with small gaps:")
-log(cases_small_gaps)
-
-log("\nIDs with large gaps:")
-log(cases_large_gaps)
-
-log("\nIDs where components were removed:")
-log(cases_parts_removed)
-
-log("\nInspection complete.")
+print("\n✅ All cases processed!")

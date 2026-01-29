@@ -275,9 +275,9 @@ class nnUNetDataLoader(DataLoader):
                     else:
                         seg_all = torch.stack(segs)
 
-                    dst_all = None
+                    # dst_all = None
                     # to be edited
-
+                    """"
                     if isinstance(segs[0], list):
                         dst_all = [
                             torch.zeros_like(s, dtype=torch.float32) for s in seg_all
@@ -297,29 +297,30 @@ class nnUNetDataLoader(DataLoader):
                                     segs[b].cpu().numpy() == 0
                                 ).astype(np.float32)
                             )
-
+                    """
                     del segs, images
             return {
                 "data": data_all,
                 "target": seg_all,
                 "keys": selected_keys,
-                "dst_map": dst_all,
+                # "dst_map": dst_all,
             }  # to be edited
-
+        """
         dst_all = np.zeros(self.seg_shape, dtype=np.float32)  # distance maps as float32
 
         for j in range(self.batch_size):
             dst_all[j] = distance_transform_edt(seg_all[j].cpu().numpy() == 0).astype(
                 np.float32
             )
+        """
         data_all = torch.from_numpy(data_all).float()
         seg_all = torch.from_numpy(seg_all).to(torch.int16)
-        dst_all = torch.from_numpy(dst_all).float()
+        # dst_all = torch.from_numpy(dst_all).float()
         return {
             "data": data_all,
             "target": seg_all,
             "keys": selected_keys,
-            "dst_map": dst_all,
+            # "dst_map": dst_all,
         }  # to be edited
 
 
