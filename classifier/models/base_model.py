@@ -1,13 +1,14 @@
 from __future__ import annotations
+
+import inspect
+import json
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Union
-import json
-import inspect
 
+import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-import pytorch_lightning as pl
-from torchmetrics import Accuracy, F1Score
+from torchmetrics import Accuracy, Precision, Recall
 
 
 def _get_qualname(obj: Any) -> str:
@@ -128,30 +129,28 @@ class BaseModel(pl.LightningModule):
     @classmethod
     def save_best_checkpoint(cls, path_checkpoint_dir, best_model_path):
         with open(Path(path_checkpoint_dir) / "best_checkpoint.json", "w") as f:
-            json.dump({"best_model_epoch": Path(best_model_path).name}, f)
-
-    @classmethod
-    def _get_best_checkpoint_path(cls, path_checkpoint_dir, **kwargs):
-        with open(Path(path_checkpoint_dir) / "best_checkpoint.json", "r") as f:
-            path_rel_best_checkpoint = Path(json.load(f)["best_model_epoch"])
-        return Path(path_checkpoint_dir) / path_rel_best_checkpoint
-
-    @classmethod
-    def _get_last_checkpoint_path(cls, path_checkpoint_dir, **kwargs):
-        checkpoint = Path(path_checkpoint_dir) / "last.ckpt"
-        if not checkpoint:
-            raise FileNotFoundError(f"No last.ckpt found in {path_checkpoint_dir}")
-        return checkpoint
-
-    @classmethod
-    def load_last_checkpoint(cls, path_checkpoint_dir, **kwargs):
-        path_last_checkpoint = cls._get_last_checkpoint_path(path_checkpoint_dir)
-        return cls.load_from_checkpoint(path_last_checkpoint, **kwargs)
+            json.dump(
+                {
+                    "best_model_epoch": str(
+                        Path(best_model_path).relative_to(path_checkpoint_dir)
+                    )
+                },
+                f,
+            )
 
     @classmethod
     def load_best_checkpoint(cls, path_checkpoint_dir, **kwargs):
-        path_best_checkpoint = cls._get_best_checkpoint_path(path_checkpoint_dir)
-        return cls.load_from_checkpoint(path_best_checkpoint, **kwargs)
+        checkpoint_path = Path(path_checkpoint_dir) / "best.ckpt"
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"No best.ckpt found in {path_checkpoint_dir}")
+        return cls.load_from_checkpoint(checkpoint_path, **kwargs)
+
+    @classmethod
+    def load_last_checkpoint(cls, path_checkpoint_dir, **kwargs):
+        checkpoint_path = Path(path_checkpoint_dir) / "last.ckpt"
+        if not checkpoint_path.exists():
+            raise FileNotFoundError(f"No last.ckpt found in {path_checkpoint_dir}")
+        return cls.load_from_checkpoint(checkpoint_path, **kwargs)
 
     def load_pretrained(self, checkpoint_path: Path, map_location=None, **kwargs):
         if checkpoint_path.is_dir():
@@ -255,7 +254,8 @@ class BasicClassifier(BaseModel):
             Union[type, Callable[..., torch.optim.lr_scheduler._LRScheduler]]
         ] = torch.optim.lr_scheduler.StepLR,
         lr_scheduler_kwargs: Dict[str, Any] = {"step_size": 15, "gamma": 0.2},
-        f1_kwargs: Optional[Dict[str, Any]] = None,
+        prec_kwargs: Optional[Dict[str, Any]] = None,
+        rec_kwargs: Optional[Dict[str, Any]] = None,
         acc_kwargs: Optional[Dict[str, Any]] = None,
         save_hyperparameters: bool = True,
     ):
@@ -274,11 +274,14 @@ class BasicClassifier(BaseModel):
             else (nn.BCEWithLogitsLoss if self.is_binary else nn.CrossEntropyLoss)
         )
         # loss_kwargs = {"pos_weight": torch.tensor([0.4 / 0.6]) }  if self.is_binary else {"weight": torch.tensor([2.0, 2.5, 1.67], dtype=torch.float)}
-        loss_kwargs = (
-            {"pos_weight": torch.tensor([0.4 / 0.6])}
-            if self.is_binary
-            else {"weight": torch.tensor([0.6, 0.4], dtype=torch.float)}
-        )
+        if loss_kwargs is None:
+            if self.is_binary:
+                loss_kwargs = {"pos_weight": torch.tensor([0.4 / 0.6])}
+            else:
+                loss_kwargs = {
+                    "weight": torch.tensor([0.6, 0.4], dtype=torch.float)
+                }
+
 
         super().__init__(
             optimizer=optimizer,
@@ -291,14 +294,21 @@ class BasicClassifier(BaseModel):
         )
 
         # Metrics
-        self.f1_kwargs = dict(f1_kwargs or {})
+        self.prec_kwargs = dict(prec_kwargs or {})
+        self.rec_kwargs = dict(rec_kwargs or {})
         self.acc_kwargs = dict(acc_kwargs or {})
         if self.is_binary:
             # torchmetrics will threshold probabilities at 0.5
-            self.f1 = nn.ModuleDict(
+            self.prec = nn.ModuleDict(
                 {
-                    state: F1Score(task="binary", **self.f1_kwargs)
-                    for state in ["train_", "val_"]
+                    s: Precision(task="binary", **self.prec_kwargs)
+                    for s in ["train_", "val_"]
+                }
+            )
+            self.rec = nn.ModuleDict(
+                {
+                    s: Recall(task="binary", **self.rec_kwargs)
+                    for s in ["train_", "val_"]
                 }
             )
             self.acc = nn.ModuleDict(
@@ -308,12 +318,18 @@ class BasicClassifier(BaseModel):
                 }
             )
         else:
-            self.f1_kwargs.update({"num_classes": out_ch})
-            self.acc_kwargs.update({"num_classes": out_ch})
-            self.f1 = nn.ModuleDict(
+            for d in (self.acc_kwargs, self.prec_kwargs, self.rec_kwargs):
+                d.update({"num_classes": out_ch})
+            self.prec = nn.ModuleDict(
                 {
-                    state: F1Score(task="multiclass", **self.f1_kwargs)
-                    for state in ["train_", "val_"]
+                    s: Precision(task="multiclass", **self.prec_kwargs)
+                    for s in ["train_", "val_"]
+                }
+            )
+            self.rec = nn.ModuleDict(
+                {
+                    s: Recall(task="multiclass", **self.rec_kwargs)
+                    for s in ["train_", "val_"]
                 }
             )
             self.acc = nn.ModuleDict(
@@ -340,16 +356,18 @@ class BasicClassifier(BaseModel):
             with torch.no_grad():
                 probs = torch.sigmoid(pred_logits)
                 self.acc[state + "_"].update(probs, target.int())
-                self.f1[state + "_"].update(probs, target.int())
+                self.prec[state + "_"].update(probs, target.int())
+                self.rec[state + "_"].update(probs, target.int())
         else:
             # CrossEntropyLoss expects class indices (long)
             loss_val = self.compute_loss(pred, target.long())
             with torch.no_grad():
                 self.acc[state + "_"].update(pred, target)
-                self.f1[state + "_"].update(pred, target)
+                self.prec[state + "_"].update(pred, target)
+                self.rec[state + "_"].update(pred, target)
 
         self.log(
-            f"{state}/loss",
+            f"{state}_loss",
             loss_val,
             batch_size=batch_size,
             on_step=True,
@@ -361,10 +379,11 @@ class BasicClassifier(BaseModel):
     def _epoch_end(self, state: str):
         for name, metric in [
             ("ACC", self.acc[state + "_"]),
-            ("F1Score", self.f1[state + "_"]),
+            ("Precision", self.prec[state + "_"]),
+            ("Recall", self.rec[state + "_"]),
         ]:
             self.log(
-                f"{state}/{name}",
+                f"{state}_{name}",
                 metric.compute(),
                 batch_size=getattr(self, "batch_size", None) or 1,
                 on_step=False,
@@ -377,8 +396,10 @@ class BasicClassifier(BaseModel):
         super().on_fit_start()
         if self.logger is not None:
             extra_hparams = {}
-            for k, v in self.f1_kwargs.items():
-                extra_hparams[f"f1_{k}"] = str(v)
             for k, v in self.acc_kwargs.items():
                 extra_hparams[f"acc_{k}"] = str(v)
+            for k, v in self.prec_kwargs.items():
+                extra_hparams[f"prec_{k}"] = str(v)
+            for k, v in self.rec_kwargs.items():
+                extra_hparams[f"rec_{k}"] = str(v)
             self.logger.log_hyperparams(extra_hparams)

@@ -259,7 +259,7 @@ class nnUNetTrainer(object):
         self.probabilistic_oversampling = False
         self.num_iterations_per_epoch = 700  # 300
         self.num_val_iterations_per_epoch = 150  # 60
-        self.num_epochs = 500  # 1100
+        self.num_epochs = 400  # 1100
         self.current_epoch = 0
         self.enable_deep_supervision = True
 
@@ -734,7 +734,7 @@ class nnUNetTrainer(object):
         # lr_scheduler = PolyLRScheduler(optimizer, self.initial_lr, self.num_epochs)
         # lr_scheduler = PolyLRScheduler_offset(optimizer, self.initial_lr, self.num_epochs, self.num_epochs)
         lr_scheduler = PolyLRScheduler_offset_min(
-            optimizer, self.initial_lr, self.num_epochs, self.num_epochs - 10, 1e-10
+            optimizer, self.initial_lr, self.num_epochs, self.num_epochs - 395, 1e-10
         )  # -100
         # lr_scheduler = CosineAnnealingWarmRestarts_Offset( optimizer, T_0=60, T_mult=1, eta_min=1e-5, offset=5    )
         # lr_scheduler = LinearWarmRestarts( optimizer, T_0=300, eta_min=1e-5, hold_offset=20)

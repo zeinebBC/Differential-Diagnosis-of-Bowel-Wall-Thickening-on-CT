@@ -245,7 +245,8 @@ Edit `classifier/run_config.json`:
     "num_patches_per_epoch_val": 250,
     "resample_spacing": [1.0, 1.0, 1.0],
     "output_dir": "Resnet_results",
-    "use_labels": true,
+    "dual_input": true,
+    "use_gt ": false,
   }
 }
 ```
@@ -258,7 +259,8 @@ Edit `classifier/run_config.json`:
 - `batch_size`: Batch size
 - `num_epochs`: Training epochs
 - `output_dir`: Output directory (relative to `root_path`)
-- `use_labels`: whether to add the segmentation masks as a second input channel
+- `dual_input`: whether to add the segmentation masks as a second input channel
+- `use_gt`: wether to use the ground truth segmentation masks or the predictions of the nnUNet
 
 You can also configure additional parameters such as the optimizer and learning rate scheduler in the same configuration file.
 #### 3.2 Run Training
@@ -332,7 +334,8 @@ Edit `classifier/run_config.json` (testing section):
     "patch_size": [32, 156, 156],
     "patch_overlap": [16, 64, 64],
     "aggregation_mode": "average",
-    "use_labels": true
+    "use_gt": false,
+    "dual_input": true,
   }
 }
 ```

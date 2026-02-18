@@ -21,5 +21,7 @@ checkpoints/
 *.pth
 *.pkl
 
-# Classifier outputsN
-classifier/runs_Resnet/
+# debugging
+debug_notebooks/
+
+

@@ -1,7 +1,9 @@
 # ============================== Imports ==============================
 
-from pathlib import Path
 import os
+import shutil
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import torch
@@ -13,8 +15,8 @@ from classifier.data.utils.functions_utils import load_volume, pad_to_shape
 from classifier.data.utils.normalizing import process_and_window_dataset
 from classifier.data.utils.resampling import batch_resample_and_save
 
-
 # ============================== Helpers ==============================
+
 
 def find_existing_file(base_dir, uid, candidates):
     for pattern in candidates:
@@ -64,12 +66,12 @@ class basedataset(data.Dataset):
         self,
         patch_size=None,
         dataset_name=None,
-        transforms=None,
         num_patches_per_epoch=None,
         split=None,
         return_full_image=False,
-        use_labels=None,
+        dual_input=None,
         pp_nnunet_data=None,
+        overwrite_preprocessing=False,
         **preprocess_kwargs,
     ):
         self.path_root = Path(os.environ["root"])
@@ -77,11 +79,10 @@ class basedataset(data.Dataset):
         self.pp_nnunet_data = pp_nnunet_data
         self.split = split
         self.return_full_image = return_full_image
-        self.use_labels = use_labels
+        self.dual_input = dual_input
         self.epoch = 0
-
+        self.overwrite_preprocessing = overwrite_preprocessing
         self.patch_size = patch_size
-        self.transforms = transforms
         self.num_patches_per_epoch = num_patches_per_epoch
 
         self.splits_file = self.path_root / "raw_data" / dataset_name / "splits.csv"
@@ -106,15 +107,10 @@ class basedataset(data.Dataset):
                     / f"pp_data/{dataset_name}/resampledTr/labels_resampled"
                 )
 
-        overwrite_flags = [
-            "overwrite_cropping",
-            "overwrite_resample",
-            "overwrite_window",
-        ]
         need_preprocess = (
             not self.images_path.exists()
             or not self.labels_path.exists()
-            or any(preprocess_kwargs.get(f, False) for f in overwrite_flags)
+            or self.overwrite_preprocessing
         )
 
         if need_preprocess:
@@ -160,10 +156,8 @@ class basedataset(data.Dataset):
         )
 
         img_t = torch.from_numpy(img).unsqueeze(0).float()
-        if self.transforms:
-            img_t = self.transforms(img_t)
 
-        if self.use_labels and lbl is not None:
+        if self.dual_input and lbl is not None:
             lbl_t = torch.from_numpy(lbl).unsqueeze(0).float()
             img_t = torch.cat([img_t, lbl_t], dim=0)
         else:
@@ -193,16 +187,16 @@ class basedataset(data.Dataset):
 
         img = np.transpose(load_volume(img_path), (2, 1, 0))
         lbl = None
-        if self.use_labels:
+        if self.dual_input:
             lbl_path = find_existing_file(self.labels_path, uid, label_candidates)
             if lbl_path.exists():
                 lbl = np.transpose(load_volume(lbl_path), (2, 1, 0))
 
         # Full image mode
         if self.return_full_image:
+            print(img.shape, lbl.shape if lbl is not None else None)
             img_t = torch.from_numpy(img).unsqueeze(0).float()
-            if self.transforms:
-                img_t = self.transforms(img_t)
+
             if lbl is not None:
                 lbl_t = torch.from_numpy(lbl).unsqueeze(0).float()
                 img_t = torch.cat([img_t, lbl_t], dim=0)
@@ -236,8 +230,7 @@ class basedataset(data.Dataset):
                 lbl_patch = pad_to_shape(lbl_patch, ps)
 
         img_t = torch.from_numpy(img_patch).unsqueeze(0).float()
-        if self.transforms:
-            img_t = self.transforms(img_t)
+
         if lbl_patch is not None:
             lbl_t = torch.from_numpy(lbl_patch).unsqueeze(0).float()
             img_t = torch.cat([img_t, lbl_t], dim=0)
@@ -265,14 +258,17 @@ class basedataset(data.Dataset):
         if test_path.exists():
             nii_files = list(test_path.glob("*.nii.gz"))
             if len(nii_files) > 0:
-                test_uids = {
-                    p.name.replace(".nii.gz", "").rsplit("_", 1)[0]
-                    for p in nii_files
-                }
+                test_uids = set()
 
- 
+                for p in nii_files:
+                    try:
+                        uid = int(p.stem.split("_")[0])
+                        test_uids.add(uid)
+                    except ValueError:
+                        print(f"Skipping invalid UID in filename: {p.name}")
+
         if test_uids:
-            test_mask = df["uid"].isin(test_uids)
+            test_mask = df["UID"].isin(test_uids)
             df.loc[test_mask, "Split"] = "test"
         else:
             print(
@@ -281,57 +277,65 @@ class basedataset(data.Dataset):
             )
 
         trainval = df[~test_mask]
-        train_idx, val_idx = train_test_split(
-            trainval.index,
-            test_size=val_fraction,
-            stratify=trainval["target"],
-            random_state=seed,
-        )
+        if len(trainval) == 0:
+            print(
+                "No training/validation samples found after excluding test set. "
+                "Check your labels file and test split."
+            )
+        else:
+            train_idx, val_idx = train_test_split(
+                trainval.index,
+                test_size=val_fraction,
+                stratify=trainval["target"],
+                random_state=seed,
+            )
 
-        df.loc[train_idx, "Split"] = "train"
-        df.loc[val_idx, "Split"] = "val"
+            df.loc[train_idx, "Split"] = "train"
+            df.loc[val_idx, "Split"] = "val"
         df.to_csv(self.splits_file, index=False)
 
     def preprocess_dataset(
         self,
-        overwrite_cropping=True,
-        overwrite_resample=True,
-        overwrite_window=True,
         resample_spacing=(1, 1, 1),
         path_data=None,
-       
+        use_gt=False,
     ):
+        if self.images_path.exists() and self.labels_path.exists():
+            # remove images and labels folders
+            shutil.rmtree(self.images_path)
+            shutil.rmtree(self.labels_path)
+
         if path_data is None:
             path_data = self.path_root / "raw_data" / self.dataset_name
 
         suffix = "Ts" if self.split == "test" else "Tr"
         images_dir = path_data / f"images{suffix}"
-        labels_dir = path_data / f"labels{suffix}"
+        if use_gt:
+            labels_dir = path_data / f"labels{suffix}"
+        else:
+            labels_dir = path_data / f"predictions{suffix}"
 
         cropped = self.path_root / f"pp_data/{self.dataset_name}/raw_cropped{suffix}"
         resampled = self.path_root / f"pp_data/{self.dataset_name}/resampled{suffix}"
         rescaled = self.path_root / f"pp_data/{self.dataset_name}/rescaled{suffix}"
 
-        if overwrite_cropping or not cropped.exists():
-            batch_crop_and_save(
-                images_dir,
-                labels_dir,
-                cropped,
-                margin_min=20,
-                split=suffix,
-                crop_to_colon=True,
-            )
+        batch_crop_and_save(
+            images_dir,
+            labels_dir,
+            cropped,
+            margin_min=20,
+            split=suffix,
+            crop_to_colon=False,
+        )
 
-        if overwrite_resample or not resampled.exists():
-            batch_resample_and_save(cropped, resampled, resample_spacing, split=suffix)
+        batch_resample_and_save(cropped, resampled, resample_spacing, split=suffix)
 
-        if overwrite_window or not rescaled.exists():
-            process_and_window_dataset(
-                resampled / "images_resampled",
-                rescaled,
-                window_min=-100,
-                window_max=500,
-                split=suffix,
-            )
+        process_and_window_dataset(
+            resampled / "images_resampled",
+            rescaled,
+            window_min=-100,
+            window_max=500,
+            split=suffix,
+        )
 
         print("Preprocessing complete. Dataset is ready to use.")

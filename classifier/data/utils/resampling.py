@@ -1,18 +1,18 @@
+import shutil
 from pathlib import Path
-from tqdm import tqdm
+
 import numpy as np
 import pandas as pd
 import SimpleITK as sitk
-import shutil
+from tqdm import tqdm
 
 
-def resample_image(image, target_spacing, is_label=False, interpolator="cubic"):
-    """Resample a SimpleITK image to the target spacing."""
+def resample_image(image, target_spacing, interpolator=sitk.sitkBSpline):
     orig_spacing = image.GetSpacing()
     orig_size = image.GetSize()
 
     new_size = [
-        int(round(orig_size[i] * (orig_spacing[i] / target_spacing[i])))
+        int(np.round(orig_size[i] * (orig_spacing[i] / target_spacing[i])))
         for i in range(3)
     ]
 
@@ -21,16 +21,20 @@ def resample_image(image, target_spacing, is_label=False, interpolator="cubic"):
     resampler.SetSize(new_size)
     resampler.SetOutputOrigin(image.GetOrigin())
     resampler.SetOutputDirection(image.GetDirection())
-
-    if is_label:
-        resampler.SetInterpolator(sitk.sitkNearestNeighbor)
-    else:
-        if interpolator == "linear":
-            resampler.SetInterpolator(sitk.sitkLinear)
-        elif interpolator == "cubic":
-            resampler.SetInterpolator(sitk.sitkBSpline)
+    resampler.SetInterpolator(interpolator)
 
     return resampler.Execute(image)
+
+
+def resample_label_to_image(label, reference_image):
+    return sitk.Resample(
+        label,
+        reference_image,
+        sitk.Transform(),
+        sitk.sitkNearestNeighbor,
+        0,
+        label.GetPixelID(),
+    )
 
 
 def batch_resample_and_save(
@@ -98,9 +102,7 @@ def batch_resample_and_save(
             out_label_path = resampled_labels_dir / f"{uid}_seg.nii.gz"
             if label_path.exists():
                 label = sitk.ReadImage(str(label_path))
-                res_label = resample_image(
-                    label, target_spacing=target_spacing, is_label=True
-                )
+                res_label = resample_label_to_image(label, reference_image=res_image)
                 sitk.WriteImage(res_label, str(out_label_path))
             else:
                 print(f"Warning: label not found for {uid}, skipping label resampling.")

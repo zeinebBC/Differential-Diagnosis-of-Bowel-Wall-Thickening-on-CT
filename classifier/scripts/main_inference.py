@@ -1,18 +1,19 @@
-from pathlib import Path
-from tqdm import tqdm
-import torch
-import torchio as tio
-import numpy as np
-from sklearn.metrics import confusion_matrix, classification_report
-import os
-import pandas as pd
-from collections import Counter
 import json
+import os
+from collections import Counter
+from pathlib import Path
 from types import SimpleNamespace
 
-from classifier.data import basedataset, DataModuleCC
-from classifier.models import ResNet
+import numpy as np
+import pandas as pd
+import torch
+import torchio as tio
+from sklearn.metrics import classification_report, confusion_matrix
+from tqdm import tqdm
+
+from classifier.data import DataModuleCC, basedataset
 from classifier.data.utils.functions_utils import pad_batch_with_channel
+from classifier.models import ResNet
 
 
 # ---------------------------
@@ -56,12 +57,16 @@ def main():
     cfg = SimpleNamespace(**cfg_dict)
     cfg.testing = SimpleNamespace(**cfg.testing)
     cfg.model = SimpleNamespace(**cfg.model)
+    cfg.training = SimpleNamespace(**cfg.training)
 
     # Paths
     path_root = Path(os.environ.get("root"))
-    chkpt_folder = Path(cfg.testing.chkpt_folder)
+    chkpt_folder = path_root / cfg.training.output_dir / cfg.testing.chkpt_folder
     path_out = (
-        path_root / cfg.testing.output_dir / chkpt_folder.name / cfg.testing.dataset
+        path_root
+        / cfg.testing.output_dir
+        / cfg.testing.chkpt_folder
+        / cfg.testing.dataset
     )
     path_out.mkdir(parents=True, exist_ok=True)
 
@@ -75,10 +80,9 @@ def main():
         patch_size=cfg.testing.patch_size,
         split="test",
         return_full_image=True,
-        use_labels=cfg.testing.use_labels,
-        overwrite_cropping=cfg.testing.overwrite_cropping,
-        overwrite_resample=cfg.testing.overwrite_resample,
-        overwrite_window=cfg.testing.overwrite_window,
+        use_gt=cfg.testing.use_gt,
+        dual_input=cfg.testing.dual_input,
+        overwrite_preprocessing=cfg.testing.overwrite_preprocessing,
         resample_spacing=tuple(cfg.testing.resample_spacing),
     )
 

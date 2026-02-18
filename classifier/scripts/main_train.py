@@ -54,12 +54,12 @@ def main():
     cfg.lr_scheduler = SimpleNamespace(**cfg.lr_scheduler)
 
     # -------------------- Paths --------------------
-    path_root = Path(os.environ.get("root_path", "."))
+    path_root = Path(os.environ.get("root", "."))
     current_time = datetime.now().strftime("%Y_%m_%d_%H%M%S")
     path_run_dir = (
         path_root
         / cfg.training.output_dir
-        / f"logs/{cfg.model.type}_{cfg.training.dataset}_{current_time}"
+        / f"{cfg.model.type}_{cfg.training.dataset}_{current_time}"
     )
     path_run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -74,23 +74,22 @@ def main():
     dataset_kwargs = dict(
         dataset_name=cfg.training.dataset,
         patch_size=cfg.training.patch_size,
-        transforms=cfg.training.transforms,
-        use_labels=cfg.training.use_labels,
+        use_gt=cfg.training.use_gt,
+        dual_input=cfg.training.dual_input,
         pp_nnunet_data=cfg.training.pp_nnunet_data,
-        overwrite_cropping=cfg.training.overwrite_cropping,
-        overwrite_resample=cfg.training.overwrite_resample,
-        overwrite_window=cfg.training.overwrite_window,
         resample_spacing=tuple(cfg.training.resample_spacing),
     )
 
     ds_train = basedataset(
         **dataset_kwargs,
+        overwrite_preprocessing=cfg.training.overwrite_preprocessing,
         num_patches_per_epoch=cfg.training.num_patches_per_epoch_train,
         split="train",
     )
 
     ds_val = basedataset(
         **dataset_kwargs,
+        overwrite_preprocessing=False,
         num_patches_per_epoch=cfg.training.num_patches_per_epoch_val,
         split="val",
     )
@@ -104,17 +103,16 @@ def main():
         pin_memory=True,
         shuffle=True,  #########
         num_workers=cfg.training.num_workers,
-        persistent_workers=True,  ##########
     )
 
     # -------------------- Model --------------------
     model = get_model(cfg)
 
     # -------------------- Logging and Callbacks --------------------
-    monitor_metric = "val/ACC"
+    monitor_metric = "val_ACC"
     mode = "max"
-    path_ml_dir = path_root / cfg.training.output_dir / "mlruns"
-
+    path_ml_dir = path_root / path_run_dir.parent.parent / "mlruns"
+    print(path_ml_dir)
     logger = MLFlowLogger(
         experiment_name=f"Classifier_{cfg.training.dataset}",
         tracking_uri=f"file:{path_ml_dir}",
@@ -123,13 +121,11 @@ def main():
 
     checkpoint_cb = ModelCheckpoint(
         dirpath=str(path_run_dir),
-        filename="last_epoch",
-        monitor=monitor_metric,
+        filename="best",
+        monitor="val_ACC",
+        mode="max",
         save_top_k=1,
-        mode=mode,
         save_last=True,
-        every_n_epochs=1,
-        save_on_train_epoch_end=True,
     )
 
     callbacks = [
@@ -141,8 +137,8 @@ def main():
     # -------------------- Trainer --------------------
     trainer = Trainer(
         accelerator=accelerator,
-        devices=1,        
-        strategy="auto", 
+        devices=1,
+        strategy="auto",
         precision="16-mixed",
         default_root_dir=str(path_run_dir),
         callbacks=callbacks,
@@ -157,7 +153,6 @@ def main():
     trainer.fit(model, datamodule=dm, ckpt_path=cfg.training.resume_from_checkpoint)
 
     # -------------------- Save Best Model --------------------
-    model.save_best_checkpoint(path_run_dir, checkpoint_cb.best_model_path)
 
 
 if __name__ == "__main__":

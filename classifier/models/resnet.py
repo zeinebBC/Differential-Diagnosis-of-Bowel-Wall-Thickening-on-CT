@@ -1,10 +1,11 @@
+import os
+
+import monai.networks.nets as nets
 import torch
 import torch.nn as nn
-import monai.networks.nets as nets
-from classifier.models.base_model import BasicClassifier
 import torchvision.models as models
 
-import os
+from classifier.models.base_model import BasicClassifier
 
 
 def _get_resnet_monai(model):
@@ -52,8 +53,15 @@ class ResNet(BasicClassifier):
         **kwargs,
     ):
         emb_ch = kwargs.pop("emb_ch", out_ch)
+        kwargs.setdefault("prec_kwargs", {"average": "macro"})
+        kwargs.setdefault("rec_kwargs", {"average": "macro"})
 
-        super().__init__(in_ch, out_ch, spatial_dims, **kwargs)
+        super().__init__(
+            in_ch,
+            out_ch,
+            spatial_dims,
+            **kwargs,
+        )
 
         self.attention_maps = []
 

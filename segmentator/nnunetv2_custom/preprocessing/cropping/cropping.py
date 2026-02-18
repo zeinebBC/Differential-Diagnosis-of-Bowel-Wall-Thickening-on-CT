@@ -1,13 +1,16 @@
-import numpy as np
-from scipy.ndimage import binary_fill_holes
-from acvl_utils.cropping_and_padding.bounding_boxes import get_bbox_from_mask, bounding_box_to_slice
 import os
 import sys
-
 from pathlib import Path
-from typing import  Tuple, Sequence
+from typing import Sequence, Tuple
 
+import numpy as np
 import SimpleITK as sitk
+from acvl_utils.cropping_and_padding.bounding_boxes import (
+    bounding_box_to_slice,
+    get_bbox_from_mask,
+)
+from scipy.ndimage import binary_fill_holes
+
 
 def create_nonzero_mask(data):
     """
@@ -34,8 +37,8 @@ def crop_to_nonzero(data, seg=None, nonzero_label=-1):
     bbox = get_bbox_from_mask(nonzero_mask)
     slicer = bounding_box_to_slice(bbox)
     nonzero_mask = nonzero_mask[slicer][None]
-    
-    slicer = (slice(None), ) + slicer
+
+    slicer = (slice(None),) + slicer
     data = data[slicer]
     if seg is not None:
         seg = seg[slicer]
@@ -43,10 +46,18 @@ def crop_to_nonzero(data, seg=None, nonzero_label=-1):
     else:
         seg = np.where(nonzero_mask, np.int8(0), np.int8(nonzero_label))
     return data, seg, bbox
-def voxels_from_mm( spacing_xyz: Tuple[float, float, float],margin_mm: Tuple[float, float, float]=(10,10,10)) -> Tuple[int, int, int]:
+
+
+def voxels_from_mm(
+    spacing_xyz: Tuple[float, float, float],
+    margin_mm: Tuple[float, float, float] = (10, 10, 10),
+) -> Tuple[int, int, int]:
     return tuple(int(round(mm / sp)) for mm, sp in zip(margin_mm, spacing_xyz))
 
-def get_bbox_from_mask_with_margin(mask: np.ndarray, margin_voxels: Tuple[int, int, int]) -> Tuple[slice, slice, slice]:
+
+def get_bbox_from_mask_with_margin(
+    mask: np.ndarray, margin_voxels: Tuple[int, int, int]
+) -> Tuple[slice, slice, slice]:
     """
     Compute tight bounding box around nonzero mask, expand by margin_voxels.
     Returns 3D slices usable to crop arrays: arr[xs, ys, zs].
@@ -55,7 +66,11 @@ def get_bbox_from_mask_with_margin(mask: np.ndarray, margin_voxels: Tuple[int, i
     coords = np.argwhere(mask > 0)
     if coords.size == 0:
         # empty mask -> whole volume slices
-        return [[0, int(mask.shape[0])], [0, int(mask.shape[1])], [0, int(mask.shape[2])]]
+        return [
+            [0, int(mask.shape[0])],
+            [0, int(mask.shape[1])],
+            [0, int(mask.shape[2])],
+        ]
     minz = coords.min(axis=0)
     maxz = coords.max(axis=0)
     x0, y0, z0 = minz
@@ -67,6 +82,8 @@ def get_bbox_from_mask_with_margin(mask: np.ndarray, margin_voxels: Tuple[int, i
     y1 = min(mask.shape[1] - 1, y1 + margin_voxels[1])
     z1 = min(mask.shape[2] - 1, z1 + margin_voxels[2])
     return [[int(x0), int(x1 + 1)], [int(y0), int(y1 + 1)], [int(z0), int(z1 + 1)]]
+
+
 def crop_to_bbox_no_channels(image, bbox: Sequence[Sequence[int]]):
     """
     Crops image to bounding box (in spatial dimensions)
@@ -102,6 +119,7 @@ def crop_to_bbox(data: np.ndarray, bbox: Sequence[Sequence[int]]):
     data = np.stack(cropped_data)
     return data
 
+
 def crop_to_label(data, seg, spacing, margin_min=20):
     """
     Crop image & segmentation to a region of interest defined by the label (segmentation mask).
@@ -125,6 +143,7 @@ def crop_to_label(data, seg, spacing, margin_min=20):
 
     return data_cropped, seg_cropped, bbox
 
+
 def crop_to_colon(data, seg, case_id, spacing, margin_min=20, margin_step=1):
     """
     Crop data to colon region
@@ -140,21 +159,19 @@ def crop_to_colon(data, seg, case_id, spacing, margin_min=20, margin_step=1):
         np.ndarray: cropped and filled (with nonzero_label) segmentation
         List[Tuple[int]]: bounding box of nonzero region
     """
-    
+
     try:
         masks_root = os.environ["auto_seg"]
     except KeyError:
         print("Error: Environment variable auto_seg is not set.", file=sys.stderr)
         sys.exit(1)
 
-   
     mask_path = Path(masks_root) / case_id
     if not mask_path.exists():
         print(f"No mask found for {case_id} in {masks_root}")
-        bbox = [[0, data.shape[1] - 1],[0, data.shape[2] - 1],[0, data.shape[3] - 1]]
+        bbox = [[0, data.shape[1] - 1], [0, data.shape[2] - 1], [0, data.shape[3] - 1]]
         return data, seg, bbox
 
-    
     mask_colon = sitk.ReadImage(str(mask_path))
     mask_colon = sitk.GetArrayFromImage(mask_colon)[None].astype(np.float32)[0]
     """
@@ -169,9 +186,7 @@ def crop_to_colon(data, seg, case_id, spacing, margin_min=20, margin_step=1):
 
     """
 
-    
     if seg is None:
-    
         """
         # No segmentation: return original data and full bounding box in correct format
         bbox = [
@@ -181,30 +196,31 @@ def crop_to_colon(data, seg, case_id, spacing, margin_min=20, margin_step=1):
         ]
         return data, seg, bbox
         """
-        margin_vox = voxels_from_mm(spacing, margin_mm=(margin_min, margin_min, margin_min))
+        margin_vox = voxels_from_mm(
+            spacing, margin_mm=(margin_min, margin_min, margin_min)
+        )
         bbox = get_bbox_from_mask_with_margin(mask_colon, margin_vox)
 
         data_cropped = crop_to_bbox(data, bbox)
-        print("data_cropped.shape:", data_cropped.shape, "data.shape",data.shape, flush=True)
-        return data_cropped,seg, bbox
 
-    
-    else: 
+        return data_cropped, seg, bbox
+
+    else:
         original_sum = np.sum(seg)
         margin_mm = margin_min
         while True:
-            margin_vox = voxels_from_mm( spacing, margin_mm=(margin_mm, margin_mm, margin_mm))
+            margin_vox = voxels_from_mm(
+                spacing, margin_mm=(margin_mm, margin_mm, margin_mm)
+            )
             bbox = get_bbox_from_mask_with_margin(mask_colon, margin_vox)
 
             data_cropped = crop_to_bbox(data, bbox)
             seg_cropped = crop_to_bbox(seg, bbox)
 
-            if np.sum(seg_cropped ) == original_sum:
-                    break  # safe margin found
+            if np.sum(seg_cropped) == original_sum:
+                break  # safe margin found
             else:
-                #print(f"  ALERT: Cropping removed part of GT for {case_id} with margin {margin_mm} mm")
+                # print(f"  ALERT: Cropping removed part of GT for {case_id} with margin {margin_mm} mm")
                 margin_mm += margin_step
-            
 
-       
         return data_cropped, seg_cropped, bbox

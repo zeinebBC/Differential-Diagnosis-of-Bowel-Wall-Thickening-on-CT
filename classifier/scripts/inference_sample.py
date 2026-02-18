@@ -1,15 +1,18 @@
+import argparse
+import json
+import os
+from collections import Counter
 from pathlib import Path
+
+import SimpleITK as sitk
 import torch
 import torchio as tio
-from collections import Counter
-from ColonCancerDetection.classifier.models import ResNet
-from classifier.data.utils.functions_utils import pad_batch_with_channel
-import json
+
 from classifier.data.utils.cropping import crop_to_label_region
-from classifier.data.utils.resampling import resample_image
+from classifier.data.utils.functions_utils import pad_batch_with_channel
 from classifier.data.utils.normalizing import window_and_normalize
-import SimpleITK as sitk
-import argparse
+from classifier.data.utils.resampling import resample_image, resample_label_to_image
+from classifier.models import ResNet
 
 
 def get_model(config):
@@ -42,7 +45,7 @@ def run_pred(model, img, use_softmax=True):
     return pred
 
 
-def load_sample(img_path, seg_path):
+def load_sample(img_path, seg_path, config):
     # Read original images with SimpleITK to get metadata
     img_sitk_orig = sitk.ReadImage(str(img_path))
     lbl_sitk_orig = sitk.ReadImage(str(seg_path))
@@ -67,8 +70,9 @@ def load_sample(img_path, seg_path):
     lbl_sitk_cropped = np_to_sitk(lbl_np, lbl_sitk_orig)
 
     # Resample
-    img_resampled = resample_image(img_sitk_cropped, (1, 1, 1), is_label=False)
-    lbl_resampled = resample_image(lbl_sitk_cropped, (1, 1, 1), is_label=True)
+    spacing = config["testing"].get("resample_spacing")
+    img_resampled = resample_image(img_sitk_cropped, spacing)
+    lbl_resampled = resample_label_to_image(lbl_sitk_cropped, img_resampled)
 
     # Convert back to NumPy
     img_np = sitk.GetArrayFromImage(img_resampled)
@@ -111,7 +115,13 @@ def run_inference_on_folder(input_folder, segmentation_folder):
     with open(config_file, "r") as f:
         config = json.load(f)
 
-    chkpt_folder = config["testing"].get("chkpt_folder", "")
+    path_root = Path(os.environ.get("root"))
+    chkpt_folder = (
+        path_root
+        / config["training"].get("output_dir")
+        / config["testing"].get("chkpt_folder")
+    )
+
     patch_size = config["testing"].get("patch_size", [64, 256, 256])
     patch_overlap = config["testing"].get("patch_overlap", [32, 128, 128])
     aggregation_mode = config["testing"].get("aggregation_mode", "average")
@@ -142,7 +152,7 @@ def run_inference_on_folder(input_folder, segmentation_folder):
             print(f"[WARNING] No segmentation for {uid}")
             continue
 
-        image = load_sample(img_file, seg_file)
+        image = load_sample(img_file, seg_file, config)
 
         image = image.to(device)
         image = pad_batch_with_channel(image, patch_size, constant_values=0)[0]

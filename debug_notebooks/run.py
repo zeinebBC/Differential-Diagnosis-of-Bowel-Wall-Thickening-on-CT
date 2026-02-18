@@ -1,3 +1,4 @@
+"""
 ###################################################### run before using refined labels ###########################################################################################
 
 import os
@@ -13,7 +14,7 @@ from acvl_utils.morphology.morphology_helper import remove_all_but_largest_compo
 # ===========================================================
 
 def find_annotated_slices(label, axis):
-    """Return sorted indices of slices containing label > 0."""
+
     if axis == "axial":
         reduce_axes = (1, 2)
     elif axis == "coronal":
@@ -31,7 +32,7 @@ def find_annotated_slices(label, axis):
 # ===========================================================
 
 def interpolate_gap(lbl, k0, k1):
-    """Interpolate slices strictly between k0 and k1."""
+
     for k in range(k0 + 1, k1):
         w = (k - k0) / float(k1 - k0)
         lbl[k] = ((1 - w) * lbl[k0] + w * lbl[k1]) > 0
@@ -39,9 +40,7 @@ def interpolate_gap(lbl, k0, k1):
 
 
 def interpolate_missing_slices(label, axis="axial", max_gap=5):
-    """
-    Interpolate ONLY small gaps (<= max_gap) between annotated slices.
-    """
+
     lbl = label.copy()
 
     # Reorient so slice dimension = 0
@@ -164,3 +163,160 @@ for label_path in label_files:
     print(f"Processed {uid}: Image={new_img_name}, Label={new_label_name}")
 
 print("Done!")
+"""
+
+################################################################ compute full metrics using seg-metrics  ##############################################
+
+################################################################ compute full metrics using seg-metrics  ##############################################
+
+#!/usr/bin/env python3
+import json
+import os
+
+import nibabel as nib
+import numpy as np
+import seg_metrics.seg_metrics as sg
+
+# -----------------------------
+# Configuration
+# -----------------------------
+pred_dir = "/data/colon_cancer/CC_Detection/raw_data/Decathlon/predictionsDecathlon"
+gt_dir = "/data/colon_cancer/CC_Detection/raw_data/Decathlon/labelsTs"
+
+output_file = "metrics_results_Ts_Decathlon.json"
+
+# Thresholds to categorize dice scores
+bad_thresh = 0.4
+medium_thresh = 0.7
+
+# seg-metrics metrics (set the metrics you want to)
+METRICS = [
+    "dice",
+    "precision",
+    "recall",
+    "fpr",
+    "fnr",
+    # "msd",
+    # "hd95",
+]
+
+
+# -----------------------------
+# Helper functions
+# -----------------------------
+def load_nifti(path):
+    img = nib.load(path)
+    return img.get_fdata().astype(np.uint8), img.header
+
+
+def get_spacing(gt_path, pred_path):
+    """
+    Returns spacing in (Z, Y, X) order.
+    Prefers GT spacing.
+    """
+    if os.path.exists(gt_path):
+        hdr = nib.load(gt_path).header
+    else:
+        hdr = nib.load(pred_path).header
+    return hdr.get_zooms()[:3]
+
+
+def categorize_dice(dice_val):
+    if dice_val < bad_thresh:
+        return "bad"
+    elif dice_val < medium_thresh:
+        return "medium"
+    else:
+        return "good"
+
+
+def compute_metrics(pred, gt, spacing):
+    """
+    Wrapper around seg-metrics
+    """
+    metrics = sg.write_metrics(
+        labels=[1],
+        pred_img=pred.astype(np.uint8),
+        gdth_img=gt.astype(np.uint8),
+        metrics=METRICS,
+        spacing=spacing,
+    )
+    return {m: float(metrics[0][m][0]) for m in METRICS}
+
+
+# -----------------------------
+# Main
+# -----------------------------
+def main():
+    results = {}
+    categories = {"bad": [], "medium": [], "good": []}
+
+    all_metrics = {m: [] for m in METRICS}
+
+    pred_files = sorted(
+        f for f in os.listdir(pred_dir) if f.endswith(".nii") or f.endswith(".nii.gz")
+    )
+
+    for pf in pred_files:
+        print(f"\nProcessing {pf}...")
+        pred_path = os.path.join(pred_dir, pf)
+        gt_path = os.path.join(gt_dir, pf)
+
+        if not os.path.exists(gt_path):
+            print(f"⚠️ GT not found for {pf}, skipping")
+            continue
+
+        pred, _ = load_nifti(pred_path)
+        gt, _ = load_nifti(gt_path)
+
+        spacing = get_spacing(gt_path, pred_path)
+
+        metrics = compute_metrics(pred, gt, spacing)
+        dice_val = metrics["dice"]
+
+        category = categorize_dice(dice_val)
+        categories[category].append(pf)
+
+        results[pf] = {
+            "metrics": metrics,
+            "category": category,
+        }
+
+        for m in METRICS:
+            all_metrics[m].append(metrics[m])
+
+        print(
+            f"{pf}: Dice={dice_val:.4f}, "
+            f"Precision={metrics['precision']:.4f}, "
+            f"Recall={metrics['recall']:.4f} -> {category}"
+        )
+
+    # -----------------------------
+    # Aggregation
+    # -----------------------------
+    aggregated = {
+        "mean": {m: float(np.mean(all_metrics[m])) for m in METRICS},
+        "median": {m: float(np.median(all_metrics[m])) for m in METRICS},
+        "min": {m: float(np.min(all_metrics[m])) for m in METRICS},
+        "max": {m: float(np.max(all_metrics[m])) for m in METRICS},
+        "counts": {k: len(v) for k, v in categories.items()},
+    }
+
+    output = {
+        "per_file": results,
+        "aggregated": aggregated,
+        "categories": categories,
+    }
+
+    with open(output_file, "w") as f:
+        json.dump(output, f, indent=4)
+
+    print("\n✅ Done! Results saved to:", output_file)
+    print(json.dumps(aggregated, indent=2))
+
+
+# -----------------------------
+# Run
+# -----------------------------
+if __name__ == "__main__":
+    main()

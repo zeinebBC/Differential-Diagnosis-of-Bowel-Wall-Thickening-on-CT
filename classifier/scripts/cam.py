@@ -1,21 +1,21 @@
 # cam_pipeline_refactored.py
 
-import os
 import json
 import logging
+import os
 from pathlib import Path
-from typing import Optional, Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn.functional as F
-from tqdm import tqdm
 import torchio as tio
-import numpy as np
-import matplotlib.pyplot as plt
+from tqdm import tqdm
 
-from classifier.models import ResNet
 from classifier.data import basedataset
 from classifier.data.utils.functions_utils import pad_to_shape
+from classifier.models import ResNet
 
 # ------------------------- Utilities -------------------------
 
@@ -251,14 +251,16 @@ def run_cam_pipeline(
     patch_size: List[int] = cam_cfg["patch_size"]
     patch_overlap: List[int] = cam_cfg["patch_overlap"]
     dataset_name: str = cam_cfg["dataset"]
-    use_labels: bool = cam_cfg["use_labels"]
+    dual_input: bool = cam_cfg["dual_input"]
+    use_gt: bool = cam_cfg["use_gt"]
 
     ds_test = basedataset(
         dataset_name=dataset_name,
         patch_size=patch_size,
         split="test",
         return_full_image=True,
-        use_labels=use_labels,
+        dual_input=dual_input,
+        use_gt=use_gt,
     )
 
     model = get_model(cfg)

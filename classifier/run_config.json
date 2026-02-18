@@ -1,7 +1,7 @@
 {
     "model": {
         "type": "ResNet",
-        "in_ch": 2,
+        "in_ch": 1,
         "out_ch": 2,
         "spatial_dims": 3,
         "resnet_model": 18,
@@ -12,7 +12,7 @@
         "type": "torch.nn.modules.loss.CrossEntropyLoss",
         "kwargs": {
             "weight": [
-                2.0, 2.5, 1.67
+                0.6, 0.4
             ]
         }
     },
@@ -37,15 +37,11 @@
             1.0,
             1.0
         ],
-        "div_cases": null,
-        "transforms": null,
-        "num_workers": 4,
+        "num_workers": 8,
         "num_epochs": 100,
-        "overwrite_cropping": false,
-        "overwrite_resample": false,
-        "overwrite_window": false,
-        "output_dir": "Resnet_results",
-        "use_labels": true,
+        "overwrite_preprocessing": false,
+        "output_dir": "Resnet_results/logs",
+        "dual_input": false,
         "pp_nnunet_data": null,
         "num_patches_per_epoch_train":2500, 
         "num_patches_per_epoch_val": 250,    
@@ -55,17 +51,14 @@
             156,
             156
         ],
-        "resume_from_checkpoint": null
+        "resume_from_checkpoint": null,
+        "use_gt": true
     },
-    "metrics": {
-        "f1_kwargs": null,
-        "acc_kwargs": null
-    },
+    
     "testing": {
-        "dataset": "Dataset_CC_reduced",
-        "chkpt_folder": "/data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_06_085145",
+        "dataset": "stage_2_cc",
+        "chkpt_folder": "ResNet_Dataset110_CC_2026_02_11_183514",
         "output_dir": "Resnet_results/inf_outputs",
-        "_comment": " /data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_05_150300 /data/benchaaben/ColonCancerDetection/classifier/resampledTs/labels_resampled   ResNet_ColonCancer_2025_10_29_102920   ResNet_ColonCancer_2025_10_21_174228 /data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_26_140955 /data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset107_CC_2025_12_21_194622",
         "patch_size": [
             32,
             156,
@@ -81,21 +74,21 @@
             64,
             64
         ],
-        "use_labels": false,
+        "dual_input": false,
+        "use_gt": false,
         "aggregation_mode": "average",
         "pp_nnunet_data": null,
-        "overwrite_cropping": false,
-        "overwrite_resample": false,
-        "overwrite_window": false,
+        "overwrite_preprocessing": false,
         "num_workers": 8,
-        "use_last": false,
-        "use_sliding_window": false
+        "use_last": false
+       
     },
     "cam": {
         "dataset": "Dataset_CC_reduced",
         "method": "scorecam",
         "chkpt_folder": "/data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_05_150300",
-        "use_labels": true,
+        "use_gt": false,
+        "dual_input": true,
         "output_dir": "Resnet_results/cam_output",
         "patch_size": [
             32,
