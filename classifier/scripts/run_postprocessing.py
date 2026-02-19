@@ -267,24 +267,24 @@ def evaluate(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pred-root", default=DEFAULT_PRED_ROOT)
-    parser.add_argument("--gt-root", default=DEFAULT_GT_ROOT)
-    parser.add_argument("--colon-root", default=DEFAULT_COLON_ROOT)
-    parser.add_argument("--prob-root", default=DEFAULT_PROB_ROOT)
-    parser.add_argument("--out-dir", default=DEFAULT_OUT_DIR)
-    parser.add_argument("--output-json", default=DEFAULT_JSON)
+    parser.add_argument("--pred_root", default=DEFAULT_PRED_ROOT)
+    parser.add_argument("--gt_root", default=DEFAULT_GT_ROOT)
+    parser.add_argument("--colon_root", default=DEFAULT_COLON_ROOT)
+    parser.add_argument("--prob_root", default=DEFAULT_PROB_ROOT)
+    parser.add_argument("--out_dir", default=DEFAULT_OUT_DIR)
+    parser.add_argument("--output_json", default=DEFAULT_JSON)
 
-    parser.add_argument("--use-colon-filter", action="store_true")
-    parser.add_argument("--use-interpolation", action="store_true")
-    parser.add_argument("--merge-by-z", action="store_true")
+    parser.add_argument("--use_colon_filter", action="store_true")
+    parser.add_argument("--use_interpolation", action="store_true")
+    parser.add_argument("--merge_by_z", action="store_true")
     parser.add_argument(
-        "--final-selection",
+        "--final_selection",
         choices=["largest", "highest_score"],
         default="highest_score",
     )
-    parser.add_argument("--save-masks", action="store_true")
+    parser.add_argument("--save_masks", action="store_true")
 
-    parser.add_argument("--debug-case", type=str)
+    parser.add_argument("--debug_case", type=str)
     parser.add_argument("--verbose", action="store_true")
 
     args = parser.parse_args()
@@ -292,16 +292,20 @@ if __name__ == "__main__":
 
 
 """
-nohup python evaluate_postprocessing.py \
+nohup python run_postprocessing.py \
   --pred_root /data/colon_cancer/CC_Detection/raw_data/Dataset100_CC/predictionsTs_wp \
   --gt_root /data/colon_cancer/CC_Detection/raw_data/Dataset100_CC/labelsTs \
   --colon_root /data/colon_cancer/totalseg/total \
   --prob_root /data/colon_cancer/CC_Detection/raw_data/Dataset100_CC/predictionsTs_wp \
-  --out_mask_dir /data/colon_cancer/CC_Detection/raw_data/Dataset100_CC/predictionsTs_pp \
+  --out_dir /data/colon_cancer/CC_Detection/raw_data/Dataset100_CC/predictionsTs_pp \
   --output_json metrics_results_postprocessing_testingcode.json \
   --use_colon_filter \
   --use_interpolation \
   --final_selection highest_score \
   --merge_by_z \
   > postprocessing.log 2>&1 &
+
+
+  nohup python run_postprocessing.py   --pred_root /data/colon_cancer/CC_Detection/raw_data/Dataset109_CC/final/predictionsDecath   --gt_root /data/colon_cancer/CC_Detection/raw_data/Decathlon/labelsTs   --colon_root /data/colon_cancer/totalseg/outputs_decathlon/total   --prob_root /data/colon_cancer/CC_Detection/raw_data/Dataset109_CC/final/predictionsDecath   --out_dir /data/colon_cancer/CC_Detection/raw_data/Dataset109_CC/final/predictionsDecathlon_pp   --output_json /data/colon_cancer/CC_Detection/raw_data/Dataset109_CC/final/results_decathlon_pp.json   --use_colon_filter   --final_selection largest   --verbose   > postprocessing_Decathlon.log 2>&1 &
+  nohup python run_postprocessing.py   --pred_root /data/colon_cancer/CC_Detection/raw_data/Dataset109_CC/final/predictionsStage2   --gt_root /data/colon_cancer/CC_Detection/raw_data/stage_2_cc/labelsTs   --colon_root /data/colon_cancer/totalseg/outputs_cc2stage/total   --prob_root /data/colon_cancer/CC_Detection/raw_data/Dataset109_CC/final/predictionsStage2   --out_dir /data/colon_cancer/CC_Detection/raw_data/Dataset109_CC/final/predictionsStage2_pp   --output_json /data/colon_cancer/CC_Detection/raw_data/Dataset109_CC/final/results_stage2_pp.json   --use_colon_filter   --final_selection largest   --verbose   > postprocessing_Stage2.log 2>&1 &
 """

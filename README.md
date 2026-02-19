@@ -1,26 +1,44 @@
-# A Two-Stage Deep Learning Pipeline for Automated Segmentation and Differential Diagnosis of Bowel Wall Thickening on CT Scans
+# An automated Two-Stage Deep Learning Pipeline for Segmentation and Differential Diagnosis of Bowel Wall Thickening on CT Scans
 
-A complete deep learning pipeline for **bowel wall thickening diagnosis** using CT scans. The system consists of two main stages:
+This repository contains the official implementation of a fully automated diagnostic framework designed to localize and differentiate Bowel Wall Thickening (BWT) on 3D abdominal CT scans
+. The pipeline addresses a critical clinical challenge: distinguishing between **Colon Cancer** and **Diverticulitis**, two conditions with overlapping imaging features that require fundamentally different treatments.
 
-1. **Segmentation** — using `nnU-Net v2` to localize bowel wall thickening
-2. **Classification** — using a custom `ResNet` model to distinguish between **cancer** and **diverticulitis**
+---
 
-## Table of Contents
+## 📌 Project Overview
 
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Dataset Structure](#dataset-structure)
-- [Training Pipeline](#training-pipeline)
-- [Inference](#inference)
-- [References](#references)
+The system operates as a two-stage pipeline to eliminate the need for manual region-of-interest (ROI) definition:
+
+* **Segmentation Stage:** Utilizes `nnU-Net v2` **nnU-Net v2** to automatically segment regions of pathological bowel wall thickening from 3D CT volumes.
+* **Classification Stage:** Employs a dual-channel 3D ResNet-18 that processes the original CT volume concatenated with the predicted segmentation mask.
 
 
-## Installation
+### Key Performance Metrics
+
+* **Dice Score** 0.67 on internal test set (n=77)
+* **Accuracy:** 91% on internal test set (n=77) (improved from 88% using CT-only input).
+* **Sensitivity:** 98% for malignant pathology.
+* **Generalizability:** Achieved 98% accuracy on external validation set (Medical Decathlon).
+
+---
+
+## 📂 Table of Contents
+
+1. [Installation](#-installation)
+2. [Quick Start](#-quick-start)
+3. [Dataset Structure](#-dataset-structure)
+4. [Training Pipeline](#-training-pipeline)
+5. [Inference](#-inference)
+6. [References](#-references)
+
+---
+
+## 🛠 Installation
 
 ### Prerequisites
 
 - Python 3.10 or higher
-- CUDA-capable GPU (recommended)
+- CUDA-capable GPU (NVIDIA H100L-94C used for training) 
 - Conda or pip
 
 ### Step 1: Create Environment
@@ -32,7 +50,7 @@ conda activate bwt_env
 
 ### Step 2: Install PyTorch
 
-Install PyTorch with CUDA support (adjust CUDA version as needed):
+Install PyTorch with CUDA support (adjust CUDA version based on your system):
 
 ```bash
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu13
@@ -47,7 +65,7 @@ git clone <repository-url>
 cd ColonCancerDetection
 pip install -e .
 ```
-## Quick Start
+## 🚀 Quick Start
 
 ### 1. Set Environment Variables
 
@@ -65,9 +83,9 @@ Organize your dataset following the [Dataset Structure](#dataset-structure) sect
 
 ### 3. Run Pipeline
 
-See [Training Pipeline](#training-pipeline) for detailed instructions.
+Proceed to the Training Pipeline (#Training Pipeline) and Inference(#Inference) for step-by-step model execution.
 
-## Dataset Structure
+## 📊 Dataset Structure
 
 ### Standard Structure (nnU-Net Style)
 
@@ -147,16 +165,16 @@ UID,target,Split
 ```
 
 
-## Training Pipeline
+## 🧠 Training Pipeline
 
-### Step 1: Generate Colon Masks with TotalSegmentator
+### Step 1:  Anatomical Cropping (TotalSegmentator)
 
-Purpose: Generate colon masks for cropping CT scans during nnU-Net preprocessing. This reduces computational load and improves segmentation accuracy. 
+Use pretrained totalsegmentator model **TotalSegmentator** to generate colon masks for cropping CT scans during nnU-Net preprocessing. This reduces computational load and background dominance. 
 
 When to run: Before both training and inference pipelines.
 
 ```bash
-python run_totalseg.py \
+python Differential-Diagnosis-of-BWT/run_totalseg.py \
   --input /path/to/images \
   --output /path/to/totalsegmentator/annotations \
   --task total \
@@ -167,7 +185,7 @@ python run_totalseg.py \
 
 #### 2.1 Preprocessing
 
-Plan and preprocess the dataset:
+generate the model´s configuration and training plan, preprocess the dataset:
 
 ```bash
 nnUNetv2_plan_and_preprocess \
@@ -329,7 +347,7 @@ Edit `classifier/run_config.json` (testing section):
 {
   "testing": {
     "dataset": "Dataset100",
-    "chkpt_folder": "/path/to/Resnet_results/logs/ResNet_Dataset100_20250101_120000",
+    "chkpt_folder":"ResNet_Dataset100_CC_2026_02_11_183514",
     "output_dir": "Resnet_results/inf_outputs",
     "patch_size": [32, 156, 156],
     "patch_overlap": [16, 64, 64],
@@ -341,7 +359,7 @@ Edit `classifier/run_config.json` (testing section):
 ```
 
 **Key parameters:**
-- `chkpt_folder`: Path to the directory containing the trained model checkpoints.
+- `chkpt_folder`: name of the trained model checkpoints.
 - `patch_size`: Spatial dimensions of the input patches used during inference.
 - `patch_overlap`: Amount of overlap between neighboring patches in sliding-window inference.
 - `aggregation_mode`: Strategy used to combine patch-level predictions into a single prediction per sample:
@@ -356,11 +374,21 @@ predict_resnet
 
 **Outputs:**
 - Classification report: `{root_path}/Resnet_results/inf_outputs/{checkpoint_id}/{dataset}/classification_report.txt`
-- detailed Results CSV: `{root_path}/Resnet_results/inf_outputs/{checkpoint_id}/{dataset}/results.csv`
+- detailed results per case: `{root_path}/Resnet_results/inf_outputs/{checkpoint_id}/{dataset}/results.csv`
 
 
-## References
+## 📚 References
 
-- **nnU-Net v2 documentation:** https://github.com/MIC-DKFZ/nnUNet
+1. **Isensee, F., et al.**  
+   *nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation.*  
+   **Nature Methods**, 18, 203–211 (2021).  
+   https://doi.org/10.1038/s41592-020-01008-z  
+   Code: https://github.com/MIC-DKFZ/nnUNet
+
+2. **Wasserthal, J., et al.**  
+   *TotalSegmentator: robust segmentation of 104 anatomical structures in CT images.*  
+   **Radiology: Artificial Intelligence**, 5(5), e230024 (2023).  
+   https://doi.org/10.1148/ryai.230024  
+   Code: https://github.com/wasserth/TotalSegmentator
 
 
