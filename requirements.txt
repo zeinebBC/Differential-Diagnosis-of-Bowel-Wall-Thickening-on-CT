@@ -112,7 +112,6 @@ ndindex==1.10.0
 nest-asyncio==1.6.0
 networkx @ file:///home/conda/feedstock_root/build_artifacts/bld/rattler-build_networkx_1731521053/work
 nibabel==5.3.2
--e git+https://zeinebBC@github.com/zeinebBC/ColonCancerDetection.git@b9beb68e316e242a927fb34b7589649ed12fddd5#egg=nnunetv2&subdirectory=nnUNet
 numexpr==2.13.1
 numpy @ file:///home/conda/feedstock_root/build_artifacts/numpy_1747544640217/work/dist/numpy-2.2.6-cp310-cp310-linux_x86_64.whl#sha256=d6d964caeef85d00073d27cd62b46883d275b3d8162f723f0fcabbd0b3cc3f9d
 openapi-core==0.19.5
