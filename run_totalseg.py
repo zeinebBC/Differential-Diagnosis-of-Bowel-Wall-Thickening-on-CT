@@ -108,12 +108,8 @@ if __name__ == "__main__":
     main()
 
 
-# micromamba create -n ttseg_env python=3.12.3
-# conda install pytorch==2.4.1 torchvision torchaudio pytorch-cuda=12.4 -c pytorch -c nvidia -c conda-forge
-# pip install TotalSegmentator
-# conda activate ttseg_env
 
-# python -m scripts.run_totalseg --input /data/colon_cancer/Task100_Colon/raw_splitted/imagesTr/ --output /data/benchaaben/colon_seg/outputs
+
 
 
 
