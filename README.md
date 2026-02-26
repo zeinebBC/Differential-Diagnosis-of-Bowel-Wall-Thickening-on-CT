@@ -21,6 +21,9 @@ The system operates as a two-stage pipeline to eliminate the need for manual reg
 * **Generalizability:** Achieved 98% accuracy on external validation set (Medical Decathlon).
 
 ---
+## ⚖️ Pretrained Models 
+
+Pretrained weights for both the segmentation and classification models will be publicly released upon publication of the associated manuscript.
 
 ## 📂 Table of Contents
 
