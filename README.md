@@ -172,7 +172,7 @@ UID,target,Split
 
 ### Step 1:  Anatomical Cropping (TotalSegmentator)
 
-Use pretrained **TotalSegmentator** model [[2]](#ref-totalseg to generate colon masks for cropping CT scans during nnU-Net preprocessing. This reduces computational load and background dominance. 
+Use pretrained **TotalSegmentator** model [[2]](#ref-totalseg) to generate colon masks for cropping CT scans during nnU-Net preprocessing. This reduces computational load and background dominance. 
 
 When to run: Before both training and inference pipelines.
 
