@@ -1,7 +1,6 @@
-# An automated Two-Stage Deep Learning Pipeline for Segmentation and Differential Diagnosis of Bowel Wall Thickening on CT Scans
+# An Automated Two-Stage Deep Learning Pipeline for Segmentation and Differential Diagnosis of Bowel Wall Thickening on CT Scans
 
-This repository contains the official implementation of a fully automated diagnostic framework designed to localize and differentiate Bowel Wall Thickening (BWT) on 3D abdominal CT scans
-. The pipeline addresses a critical clinical challenge: distinguishing between **Colon Cancer** and **Diverticulitis**, two conditions with overlapping imaging features that require fundamentally different treatments.
+This repository contains the official implementation of a fully automated diagnostic framework designed to localize and differentiate Bowel Wall Thickening (BWT) on 3D abdominal CT scans. The pipeline addresses a critical clinical challenge: distinguishing between **Colon Cancer** and **Diverticulitis**, two conditions with overlapping imaging features that require fundamentally different treatments.
 
 ---
 
@@ -9,15 +8,16 @@ This repository contains the official implementation of a fully automated diagno
 
 The system operates as a two-stage pipeline to eliminate the need for manual region-of-interest (ROI) definition:
 
-* **Segmentation Stage:** Utilizes `nnU-Net v2` **nnU-Net v2** to automatically segment regions of pathological bowel wall thickening from 3D CT volumes.
+* **Segmentation Stage:** Utilizes **nnU-Net v2** [[1]](#ref-nnunet) to automatically segment regions of pathological bowel wall thickening from 3D CT volumes.
 * **Classification Stage:** Employs a dual-channel 3D ResNet-18 that processes the original CT volume concatenated with the predicted segmentation mask.
 
 
 ### Key Performance Metrics
 
-* **Dice Score** 0.67 on internal test set (n=77)
+* **Dice Score** 0.78 on internal test set (n=77)
 * **Accuracy:** 91% on internal test set (n=77) (improved from 88% using CT-only input).
 * **Sensitivity:** 98% for malignant pathology.
+* **Specificity:** 81% for benign pathology.
 * **Generalizability:** Achieved 98% accuracy on external validation set (Medical Decathlon).
 
 ---
@@ -77,7 +77,7 @@ export root="/path/to/your/data"
 export nnUNet_raw="/path/to/raw/data"
 export nnUNet_preprocessed="/path/to/preprocessed/data"
 export nnUNet_results="/path/to/output/folder"
-export auto_seg="/path/to/totalsegmentator/annotations" 
+export auto_seg="/path/to/Totalsegmentator/annotations" 
 ```
 
 ### 2. Prepare Dataset
@@ -172,14 +172,14 @@ UID,target,Split
 
 ### Step 1:  Anatomical Cropping (TotalSegmentator)
 
-Use pretrained totalsegmentator model **TotalSegmentator** to generate colon masks for cropping CT scans during nnU-Net preprocessing. This reduces computational load and background dominance. 
+Use pretrained **TotalSegmentator** model [[2]](#ref-totalseg to generate colon masks for cropping CT scans during nnU-Net preprocessing. This reduces computational load and background dominance. 
 
 When to run: Before both training and inference pipelines.
 
 ```bash
 python Differential-Diagnosis-of-BWT/run_totalseg.py \
   --input /path/to/images \
-  --output /path/to/totalsegmentator/annotations \
+  --output /path/to/Totalsegmentator/annotations \
   --task total \
   --roi_subset colon
 ```
@@ -188,7 +188,7 @@ python Differential-Diagnosis-of-BWT/run_totalseg.py \
 
 #### 2.1 Preprocessing
 
-generate the model´s configuration and training plan, preprocess the dataset:
+generate the model's configuration and training plan, preprocess the dataset:
 
 ```bash
 nnUNetv2_plan_and_preprocess \
@@ -231,7 +231,7 @@ nnUNetv2_train \
 - `3d_fullres`: nnUNet Configuration
 - `0`: Fold number (0-4 for 5-fold cross-validation)
 - `-p`: Planner name (must match preprocessing)
-- `--npz`: Save probability maps (required for models ensembling)
+- `--npz`: Save probability maps (required for model ensembling)
 
 
 
@@ -267,7 +267,7 @@ Edit `classifier/run_config.json`:
     "resample_spacing": [1.0, 1.0, 1.0],
     "output_dir": "Resnet_results",
     "dual_input": true,
-    "use_gt ": false,
+    "use_gt": false,
   }
 }
 ```
@@ -281,7 +281,7 @@ Edit `classifier/run_config.json`:
 - `num_epochs`: Training epochs
 - `output_dir`: Output directory (relative to `root_path`)
 - `dual_input`: whether to add the segmentation masks as a second input channel
-- `use_gt`: wether to use the ground truth segmentation masks or the predictions of the nnUNet
+- `use_gt`: whether to use the ground truth segmentation masks or the nnU-Net predictions.
 
 You can also configure additional parameters such as the optimizer and learning rate scheduler in the same configuration file.
 #### 3.2 Run Training
@@ -377,21 +377,25 @@ predict_resnet
 
 **Outputs:**
 - Classification report: `{root_path}/Resnet_results/inf_outputs/{checkpoint_id}/{dataset}/classification_report.txt`
-- detailed results per case: `{root_path}/Resnet_results/inf_outputs/{checkpoint_id}/{dataset}/results.csv`
+- Detailed results per case: `{root_path}/Resnet_results/inf_outputs/{checkpoint_id}/{dataset}/results.csv`
 
 
 ## 📚 References
 
-1. **Isensee, F., et al.**  
-   *nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation.*  
-   **Nature Methods**, 18, 203–211 (2021).  
-   https://doi.org/10.1038/s41592-020-01008-z  
-   Code: https://github.com/MIC-DKFZ/nnUNet
+<a id="ref-nnunet"></a>
+**[1] Isensee, F., et al.**  
+*nnU-Net: a self-configuring method for deep learning-based biomedical image segmentation.*  
+**Nature Methods**, 18, 203–211 (2021).  
+https://doi.org/10.1038/s41592-020-01008-z 
+Code: https://github.com/MIC-DKFZ/nnUNet
 
-2. **Wasserthal, J., et al.**  
-   *TotalSegmentator: robust segmentation of 104 anatomical structures in CT images.*  
-   **Radiology: Artificial Intelligence**, 5(5), e230024 (2023).  
-   https://doi.org/10.1148/ryai.230024  
-   Code: https://github.com/wasserth/TotalSegmentator
+<a id="ref-totalseg"></a>
+**[2] Wasserthal, J., et al.**  
+*TotalSegmentator: robust segmentation of 104 anatomical structures in CT images.*  
+**Radiology: Artificial Intelligence**, 5(5), e230024 (2023).  
+https://doi.org/10.1148/ryai.230024
+Code: https://github.com/wasserth/TotalSegmentator
+
+
 
 
