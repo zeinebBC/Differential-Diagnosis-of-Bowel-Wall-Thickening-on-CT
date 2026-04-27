@@ -48,6 +48,7 @@ class ResNet(BasicClassifier):
         out_ch,
         spatial_dims=3,
         model=18,
+        f1_kwargs=None,
         pretrained=False,
         kwargs_resnet={},
         **kwargs,
@@ -80,8 +81,7 @@ class ResNet(BasicClassifier):
                     101: "https://huggingface.co/TencentMedicalNet/MedicalNet-Resnet101/resolve/main/resnet_101.pth",
                     152: "https://huggingface.co/TencentMedicalNet/MedicalNet-Resnet152/resolve/main/resnet_152.pth",
                 }
-                #add your own weights_root:
-                #weights_root = 
+                weights_root = "/data/*******/classifier/models/weights/"
                 os.makedirs(weights_root, exist_ok=True)
                 weights_path = weights_root + f"resnet{model}_3d.pth"
                 download_if_missing(url_map[model], weights_path)
@@ -154,8 +154,7 @@ class ResNet(BasicClassifier):
                     101: "https://download.pytorch.org/models/resnet101-cd907fc2.pth",
                     152: "https://download.pytorch.org/models/resnet152-f82ba261.pth",
                 }
-                #add your own weights_root:
-                #weights_root = 
+                weights_root = "/data/*******/classifier/models/weights/"
                 os.makedirs(weights_root, exist_ok=True)
                 weights_path = weights_root + f"resnet{model}_2d.pth"
                 download_if_missing(url_map[model], weights_path)

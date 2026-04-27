@@ -72,6 +72,7 @@ class basedataset(data.Dataset):
         dual_input=None,
         pp_nnunet_data=None,
         overwrite_preprocessing=False,
+        path_data=None,
         **preprocess_kwargs,
     ):
         self.path_root = Path(os.environ["root"])
@@ -114,7 +115,8 @@ class basedataset(data.Dataset):
         )
 
         if need_preprocess:
-            self.preprocess_dataset(**preprocess_kwargs)
+            self.preprocess_dataset(path_data=Path(path_data) if path_data else None,
+                                    **preprocess_kwargs)
 
         # ---------------- Splits ----------------
         if not self.splits_file.exists():

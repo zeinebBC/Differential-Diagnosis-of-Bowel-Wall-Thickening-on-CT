@@ -37,6 +37,20 @@ def resample_label_to_image(label, reference_image):
     )
 
 
+def resample_softmax_to_image(softmax_sitk, reference_image):
+    """
+    Resample softmax probabilities using Linear interpolation.
+    """
+    return sitk.Resample(
+        softmax_sitk,
+        reference_image,
+        sitk.Transform(),
+        sitk.sitkLinear,  # Use Linear for probabilities!
+        0.0,
+        softmax_sitk.GetPixelID(),
+    )
+
+
 def batch_resample_and_save(
     root_dir: str,
     output_dir: str,
@@ -103,6 +117,9 @@ def batch_resample_and_save(
             if label_path.exists():
                 label = sitk.ReadImage(str(label_path))
                 res_label = resample_label_to_image(label, reference_image=res_image)
+                #####################################################################
+                #res_label = resample_softmax_to_image(label, reference_image=res_image)
+                #####################################################################
                 sitk.WriteImage(res_label, str(out_label_path))
             else:
                 print(f"Warning: label not found for {uid}, skipping label resampling.")

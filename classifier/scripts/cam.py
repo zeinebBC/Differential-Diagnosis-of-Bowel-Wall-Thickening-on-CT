@@ -253,6 +253,7 @@ def run_cam_pipeline(
     dataset_name: str = cam_cfg["dataset"]
     dual_input: bool = cam_cfg["dual_input"]
     use_gt: bool = cam_cfg["use_gt"]
+    path_data: str = cam_cfg.get("path_data", None)
 
     ds_test = basedataset(
         dataset_name=dataset_name,
@@ -261,6 +262,7 @@ def run_cam_pipeline(
         return_full_image=True,
         dual_input=dual_input,
         use_gt=use_gt,
+        path_data=path_data,
     )
 
     model = get_model(cfg)

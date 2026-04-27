@@ -16,6 +16,7 @@ venv/
 *.log
 *.out
 *.txt
+*.pdf
 # Data and large folders
 checkpoints/
 *.pth
@@ -23,5 +24,6 @@ checkpoints/
 
 # debugging
 debug_notebooks/
+/classifier/run_config copy.json
 
 

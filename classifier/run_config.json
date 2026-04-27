@@ -1,7 +1,7 @@
 {
     "model": {
         "type": "ResNet",
-        "in_ch": 1,
+        "in_ch": 2,
         "out_ch": 2,
         "spatial_dims": 3,
         "resnet_model": 18,
@@ -12,7 +12,8 @@
         "type": "torch.nn.modules.loss.CrossEntropyLoss",
         "kwargs": {
             "weight": [
-                0.6, 0.4
+                0.6,
+                0.4
             ]
         }
     },
@@ -31,34 +32,40 @@
         }
     },
     "training": {
-        "dataset": "Dataset_CC_reduced",
+        "dataset": "Dataset110_CC",
         "resample_spacing": [
             1.0,
             1.0,
             1.0
         ],
+        "div_cases": null,
+        "transforms": null,
         "num_workers": 8,
         "num_epochs": 100,
-        "overwrite_preprocessing": false,
-        "output_dir": "Resnet_results/logs",
-        "dual_input": false,
+        "overwrite_cropping": false,
+        "overwrite_resample": false,
+        "overwrite_window": false,
+        "output_dir": "Resnet_logs",
+        "use_labels": true,
         "pp_nnunet_data": null,
-        "num_patches_per_epoch_train":2500, 
-        "num_patches_per_epoch_val": 250,    
+        "num_patches_per_epoch_train": 2500,
+        "num_patches_per_epoch_val": 250,
         "batch_size": 8,
         "patch_size": [
             32,
             156,
             156
         ],
-        "resume_from_checkpoint": null,
-        "use_gt": true
+        "resume_from_checkpoint": null
     },
-    
+    "metrics": {
+        "f1_kwargs": null,
+        "acc_kwargs": null
+    },
     "testing": {
-        "dataset": "stage_2_cc",
-        "chkpt_folder": "ResNet_Dataset110_CC_2026_02_11_183514",
-        "output_dir": "Resnet_results/inf_outputs",
+        "dataset": "Dataset_Berlin",
+        "chkpt_folder": "final_checkpoint",
+        "output_dir": "cls_results",
         "patch_size": [
             32,
             156,
@@ -74,21 +81,20 @@
             64,
             64
         ],
-        "dual_input": false,
+        "dual_input": true,
         "use_gt": false,
         "aggregation_mode": "average",
         "pp_nnunet_data": null,
         "overwrite_preprocessing": false,
         "num_workers": 8,
-        "use_last": false
-       
+        "use_last": false,
+        "path_data": null
     },
     "cam": {
         "dataset": "Dataset_CC_reduced",
         "method": "scorecam",
         "chkpt_folder": "/data/colon_cancer/CC_Detection/Resnet_results/logs/ResNet_Dataset100_CC_2025_11_05_150300",
-        "use_gt": false,
-        "dual_input": true,
+        "use_labels": true,
         "output_dir": "Resnet_results/cam_output",
         "patch_size": [
             32,

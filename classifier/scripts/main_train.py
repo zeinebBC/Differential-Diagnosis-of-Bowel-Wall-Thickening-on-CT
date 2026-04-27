@@ -78,6 +78,7 @@ def main():
         dual_input=cfg.training.dual_input,
         pp_nnunet_data=cfg.training.pp_nnunet_data,
         resample_spacing=tuple(cfg.training.resample_spacing),
+        path_data=cfg.training.path_data,
     )
 
     ds_train = basedataset(

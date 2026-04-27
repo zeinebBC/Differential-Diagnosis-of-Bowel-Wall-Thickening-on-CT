@@ -122,6 +122,11 @@ def batch_crop_and_save(
         out_img_path = cropped_images_dir / f"{uid}.nii.gz"
         out_label_path = cropped_labels_dir / f"{uid}.nii.gz" if crop_labels else None
 
+        ###############################################################################
+        #softmax_path = labels_dir / f"{uid}.npz"
+        #softmax_mask = np.load(str(softmax_path))["probabilities"][1].transpose()
+        ###############################################################################
+
         if out_img_path.exists():
             print(f"Skipping {uid}, already cropped.")
             continue
@@ -158,6 +163,17 @@ def batch_crop_and_save(
         original_shapes.append(original_shape)
 
         # ---- Crop to ROI
+        #########################################################################################
+        #data_cropped, seg_cropped, bbox = crop_to_label_region(
+        #    data=data,
+        #    crop_mask=crop_mask,
+        #    seg=softmax_mask,
+        #    spacing=spacing,
+        #    margin_min=margin_min,
+        #)
+        #########################################################################################
+        
+        
         data_cropped, seg_cropped, bbox = crop_to_label_region(
             data=data,
             crop_mask=crop_mask,
@@ -165,6 +181,7 @@ def batch_crop_and_save(
             spacing=spacing,
             margin_min=margin_min,
         )
+        
         cropped_shape = list(data_cropped.shape[1:])
         cropped_shapes.append(cropped_shape)
 

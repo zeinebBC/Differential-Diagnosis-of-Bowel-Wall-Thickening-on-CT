@@ -62,12 +62,14 @@ def main():
     # Paths
     path_root = Path(os.environ.get("root"))
     chkpt_folder = path_root / cfg.training.output_dir / cfg.testing.chkpt_folder
+    print(f"Using checkpoint folder: {chkpt_folder}")
     path_out = (
         path_root
         / cfg.testing.output_dir
         / cfg.testing.chkpt_folder
         / cfg.testing.dataset
     )
+    print(f"Output will be saved to: {path_out}")
     path_out.mkdir(parents=True, exist_ok=True)
 
     # Device
@@ -84,6 +86,7 @@ def main():
         dual_input=cfg.testing.dual_input,
         overwrite_preprocessing=cfg.testing.overwrite_preprocessing,
         resample_spacing=tuple(cfg.testing.resample_spacing),
+        path_data=cfg.testing.path_data,
     )
 
     # DataModule
