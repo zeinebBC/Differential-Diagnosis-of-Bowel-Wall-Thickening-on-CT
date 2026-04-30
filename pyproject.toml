@@ -69,10 +69,6 @@ py-modules = ["run_totalseg"]
 [tool.setuptools.packages.find]
 where = ["."]
 
-[project.urls]
-homepage = ""
-repository = ""
-
 [project.scripts]
 segment_colon = "run_totalseg:main"
 train_resnet = "classifier.scripts.main_train:main"
