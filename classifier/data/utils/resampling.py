@@ -94,7 +94,12 @@ def batch_resample_and_save(
             continue
 
         # Load image
-        image = sitk.ReadImage(str(img_path))
+        try:
+            image = sitk.ReadImage(str(img_path))
+        except Exception as e:
+            print("WARNING", e, str(img_path))
+            continue
+            
 
         orig_spacing = image.GetSpacing()
         orig_size = image.GetSize()
