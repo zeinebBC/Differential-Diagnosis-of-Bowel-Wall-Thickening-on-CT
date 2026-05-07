@@ -130,7 +130,10 @@ class basedataset(data.Dataset):
             uid = str(row["UID"])
             target = int(row["target"])
             img_path = find_existing_file(self.images_path, uid, image_candidates)
-            self.images.append((uid, img_path, target))
+            if img_path is not None and Path(img_path).exists():
+                self.images.append((uid, img_path, target))
+            else:
+                print(f"Skipped File {target}: no image found")
 
         print(f"[BaseDataset] Loaded {len(self.images)} subjects for split='{split}'")
 
